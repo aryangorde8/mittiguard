@@ -378,6 +378,15 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, await weatherSnapshot(lat, lon));
     }
 
+    if (req.method === "POST" && path === "/api/demo/reset") {
+      const body = await readJson(req);
+      if (body.confirmation !== "RESET_DEMO_LEDGER") {
+        return sendJson(res, 400, { error: "Explicit demo-reset confirmation is required." });
+      }
+      const baseline = await store.resetDemoLedger();
+      return sendJson(res, 200, { ok: true, baseline });
+    }
+
     if (req.method === "GET" && path === "/api/cases") {
       return sendJson(res, 200, { cases: await store.listCases() });
     }

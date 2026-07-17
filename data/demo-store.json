@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "cases": [],
+  "fields": [
+    {
+      "id": "GNT-14 · North plot",
+      "farmerName": "Asha Reddy",
+      "crop": "Chilli",
+      "events": [
+        {
+          "at": "2026-07-07T08:30:00.000Z",
+          "kind": "input_outcome",
+          "title": "Prior input outcome recorded",
+          "detail": "Farmer reported no outcome improvement; a repeat sale must be reviewed.",
+          "severity": "warning"
+        },
+        {
+          "at": "2024-01-11T08:30:00.000Z",
+          "kind": "soil_report",
+          "title": "Soil Health Card uploaded",
+          "detail": "Report is now outside the review window.",
+          "severity": "neutral"
+        }
+      ]
+    }
+  ]
+}

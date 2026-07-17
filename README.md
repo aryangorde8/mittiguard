@@ -24,6 +24,8 @@ npm run dev
 
 Then open <http://localhost:3000>.
 
+For a repeatable recording, use **Load clean jury demo** in the app. It asks for confirmation, clears only the local JSON demo ledger, and restores one curated field history. Do not use it for real customer data.
+
 The prototype works without credentials using its deterministic demo assessment. For the live Amazon Nova Pro evidence-summary path, copy the example configuration and add your Bedrock API key before starting the server:
 
 ```bash

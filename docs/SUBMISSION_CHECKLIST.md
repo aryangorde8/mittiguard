@@ -3,6 +3,7 @@
 Complete these items before submitting to Devpost.
 
 - [ ] Run `npm run check` and `npm run smoke:model`; save a terminal screenshot showing both pass.
+- [ ] Before recording, use **Load clean jury demo** and confirm the reset. It intentionally erases only the local demo ledger and restores one curated field history.
 - [ ] Record the under-three-minute demo using [DEMO.md](DEMO.md). Keep the audio factual: Codex/GPT-5.6 accelerated the build; Amazon Nova Pro is the live runtime evidence-summary provider.
 - [ ] Capture three screenshots: the blocked invoice, the three-lane Evidence Relay, and the evidence-received case that remains on hold.
 - [ ] Create a GitHub repository, keep `.env` untracked, and choose a license you are comfortable applying before making it public.

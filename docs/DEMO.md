@@ -6,6 +6,8 @@ Use the bundled demo case. Do not claim a real diagnosis, yield improvement, reg
 
 “A farmer arrives at a shop after rain with yellowing chilli leaves and a failed previous input. Most farm tools try to name a disease and sell a product. MittiGuard Relay does the opposite: it turns uncertainty into owned evidence work before the invoice is allowed to continue.”
 
+Before recording, use **Load clean jury demo** and confirm the reset. This gives the video one curated field history and no duplicate test cases.
+
 Show **Case intake** and the default demo story.
 
 ## 0:22–0:48 — Capture the real-world mess
@@ -44,4 +46,4 @@ Say: “If this farmer returns, the dealer does not start from a blank conversat
 
 Open **Safety bench**. Say: “Eight deterministic policy fixtures, an Evidence Relay persistence test, a model-output guard, and a live Nova contract check support one narrow claim: ambiguity never becomes automated input authorization.”
 
-End: “MittiGuard Relay does not help dealers sell more inputs. It helps them stop selling blind—and recover the evidence a human needs to act responsibly.”
+End: “Farm-input decisions compound across livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security. It helps dealers stop selling blind—and recover the evidence a human needs to act responsibly.”

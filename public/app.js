@@ -86,6 +86,36 @@ function startLiveCase() {
   scrollToTop();
 }
 
+async function resetDemoLedger() {
+  const confirmed = window.confirm("Load the clean jury demo? This permanently clears only the local MittiGuard demo ledger on this computer.");
+  if (!confirmed) return;
+  const buttons = [$("#reset-demo-ledger"), $("#reset-demo-ledger-inline")];
+  buttons.forEach((button) => { button.disabled = true; button.textContent = "Resetting demo…"; });
+  try {
+    const response = await fetch("/api/demo/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation: "RESET_DEMO_LEDGER" })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Unable to reset the demo ledger.");
+    relayCases = [];
+    selectedRelayId = null;
+    currentCase = null;
+    resetDemo();
+    await Promise.all([loadRelay(), loadFieldMemory()]);
+    $("#form-footnote").textContent = "Clean jury demo loaded. The field has one prior outcome and one stale soil record—open the relay to begin the story.";
+    switchSection("case-desk");
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    buttons.forEach((button, index) => {
+      button.disabled = false;
+      button.textContent = index === 0 ? "↺ Load clean jury demo" : "Reset jury ledger";
+    });
+  }
+}
+
 function dataFromForm() {
   const data = Object.fromEntries(new FormData(form).entries());
   data.photoProvided = demoMode || Boolean(photoDataUrl);
@@ -400,6 +430,8 @@ photoInput.addEventListener("change", async () => {
 
 form.addEventListener("submit", assess);
 $("#reset-demo").addEventListener("click", resetDemo);
+$("#reset-demo-ledger").addEventListener("click", resetDemoLedger);
+$("#reset-demo-ledger-inline").addEventListener("click", resetDemoLedger);
 $("#new-live-case").addEventListener("click", startLiveCase);
 $("#voice-capture").addEventListener("click", startVoiceCapture);
 $$(".nav-item").forEach((item) => item.addEventListener("click", () => switchSection(item.dataset.section)));

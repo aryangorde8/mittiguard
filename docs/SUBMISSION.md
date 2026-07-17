@@ -22,6 +22,8 @@ When evidence conflicts, MittiGuard Relay changes the state of the work: the inv
 
 MittiGuard never diagnoses disease or recommends a pesticide, fertiliser, dose, or timing. Its value is calibrated refusal: stopping a blind sale and turning uncertainty into an auditable evidence task.
 
+Farm-input decisions compound across farms, livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security; its focused contribution is to prevent one avoidable operational failure—an unsupported repeat input—from being treated as a confident decision.
+
 ## Features
 
 - Dealer-facing counter workflow for pesticide and fertiliser requests
