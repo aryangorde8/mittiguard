@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "C-0001",
+      "extensionId": "EXT-0001",
+      "status": "OPEN",
+      "createdAt": "2026-07-15T08:30:00.000Z",
+      "updatedAt": "2026-07-15T08:30:00.000Z",
+      "farmer": "Asha Reddy",
+      "field": "GNT-14 · North plot",
+      "crop": "Chilli",
+      "cropStage": "Flowering",
+      "symptom": "Yellowing lower leaves after rain; spots on a few plants.",
+      "requestType": "pesticide",
+      "requestedProduct": "LeafShield 300",
+      "photoAttached": true,
+      "soilReportDate": "2024-01-11",
+      "lastInput": "Fungicide, 10 days ago",
+      "previousInputFailed": true,
+      "saleState": "ON_HOLD",
+      "decision": "PAUSED",
+      "policyVersion": "MG-1.0",
+      "reasons": [
+        "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+        "The field ledger records an unsuccessful prior input; do not repeat a sale without review."
+      ],
+      "requiredEvidence": [
+        "Current soil test / Soil Health Card",
+        "Extension review of the previous outcome"
+      ],
+      "assessment": {
+        "observations": [
+          "Reported symptom: Yellowing lower leaves after rain; spots on a few plants.",
+          "Crop context: Chilli, Flowering."
+        ],
+        "conflicts": [
+          "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+          "The field ledger records an unsuccessful prior input; do not repeat a sale without review."
+        ],
+        "questions": [
+          "Current soil test / Soil Health Card",
+          "Extension review of the previous outcome"
+        ],
+        "source": "Deterministic demo engine"
+      },
+      "reviewNote": null
+    },
+    {
+      "id": "C-0002",
+      "extensionId": "EXT-0002",
+      "status": "EVIDENCE_RECEIVED",
+      "createdAt": "2026-07-17T11:24:03.073Z",
+      "updatedAt": "2026-07-17T11:25:16.046Z",
+      "farmer": "Asha Reddy",
+      "field": "GNT-14 · North plot",
+      "crop": "Chilli",
+      "cropStage": "Flowering",
+      "symptom": "Yellowing lower leaves after rain; spots on a few plants.",
+      "requestType": "pesticide",
+      "requestedProduct": "LeafShield 300",
+      "photoAttached": true,
+      "soilReportDate": "2024-01-11",
+      "lastInput": "Fungicide, 10 days ago",
+      "previousInputFailed": true,
+      "saleState": "ON_HOLD",
+      "decision": "PAUSED",
+      "policyVersion": "MG-1.0",
+      "reasons": [
+        "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+        "The field ledger records an unsuccessful prior input; do not repeat a sale without review."
+      ],
+      "requiredEvidence": [
+        "Current soil test / Soil Health Card",
+        "Extension review of the previous outcome"
+      ],
+      "assessment": {
+        "observations": [
+          "Crop: Chilli",
+          "Crop Stage: Flowering",
+          "Symptom: Yellowing lower leaves after rain; spots on a few plants.",
+          "Last Input: Fungicide, 10 days ago"
+        ],
+        "conflicts": [
+          "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+          "The field ledger records an unsuccessful prior input; do not repeat a sale without review."
+        ],
+        "questions": [
+          "Please provide the current soil test or Soil Health Card.",
+          "Please request an extension review of the previous outcome."
+        ],
+        "source": "Amazon Nova Pro"
+      },
+      "reviewNote": "Evidence packet received. Sale remains on hold until a qualified reviewer completes the case."
+    }
+  ],
+  "fields": [
+    {
+      "id": "GNT-14 · North plot",
+      "farmerName": "Asha Reddy",
+      "crop": "Chilli",
+      "events": [
+        {
+          "at": "2026-07-17T11:25:16.046Z",
+          "kind": "review_update",
+          "title": "Extension evidence received",
+          "detail": "Evidence packet received. Sale remains on hold until a qualified reviewer completes the case.",
+          "severity": "neutral",
+          "caseId": "C-0002"
+        },
+        {
+          "at": "2026-07-17T11:24:03.073Z",
+          "kind": "gate_result",
+          "title": "Input sale paused",
+          "detail": "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+          "severity": "warning",
+          "caseId": "C-0002"
+        },
+        {
+          "at": "2026-07-15T08:30:00.000Z",
+          "kind": "gate_result",
+          "title": "Input sale paused",
+          "detail": "Yellowing can reflect nutrient stress as well as disease, but current soil evidence is unavailable.",
+          "severity": "warning",
+          "caseId": "C-0001"
+        },
+        {
+          "at": "2026-07-07T08:30:00.000Z",
+          "kind": "input_outcome",
+          "title": "LeafShield 300 recorded",
+          "detail": "Farmer reported no outcome improvement; a repeat sale must be reviewed.",
+          "severity": "warning"
+        },
+        {
+          "at": "2024-01-11T08:30:00.000Z",
+          "kind": "soil_report",
+          "title": "Soil Health Card uploaded",
+          "detail": "Report is now outside the review window.",
+          "severity": "neutral"
+        }
+      ]
+    }
+  ]
+}

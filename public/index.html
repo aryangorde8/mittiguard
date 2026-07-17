@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MittiGuard evidence-first input-sale workflow" />
+    <title>MittiGuard — don't sell blind</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#case-desk" aria-label="MittiGuard home">
+          <span class="brand-mark">m</span>
+          <span>Mitti<span>Guard</span></span>
+        </a>
+        <p class="brand-kicker">Evidence-first sales</p>
+        <nav class="navigation" aria-label="Workspace">
+          <button class="nav-item active" data-section="case-desk"><span>▦</span> Case desk</button>
+          <button class="nav-item" data-section="field-memory"><span>◌</span> Field memory</button>
+          <button class="nav-item" data-section="extension"><span>↗</span> Extension queue <b id="queue-count">1</b></button>
+          <button class="nav-item" data-section="safety"><span>◒</span> Safety bench</button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="policy-chip"><i></i> Policy MG-1.0</div>
+          <p>Models explain evidence.<br />Policy controls the sale.</p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="crumb"><span>Counter workspace</span><i>›</i><strong>New evidence case</strong></div>
+          <div class="operator"><span class="signal"></span><span id="model-status">Checking model path…</span><span class="avatar">DK</span></div>
+        </header>
+
+        <section class="view active" id="case-desk">
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow">Input-sale workflow</p>
+              <h1>Stop a blind sale before it becomes a repeat mistake.</h1>
+              <p class="lead">Turn a counter conversation into an evidence-backed case. MittiGuard does not diagnose crops or prescribe inputs.</p>
+            </div>
+            <div class="heading-actions"><button class="secondary-button" id="new-live-case">+ New live case</button><button class="secondary-button" id="reset-demo">↺ Load demo case</button></div>
+          </div>
+
+          <div class="stepper" aria-label="Case steps">
+            <div class="step done"><span>1</span><div><b>Counter request</b><small>Capture the sale context</small></div></div>
+            <div class="step active"><span>2</span><div><b>Evidence check</b><small>Reconcile field signals</small></div></div>
+            <div class="step"><span>3</span><div><b>Sale state</b><small>Pause or route for review</small></div></div>
+          </div>
+
+          <div class="case-layout">
+            <form class="case-form" id="case-form">
+              <div class="form-card title-card">
+                <div class="case-number">CASE <strong id="case-number">C-0327</strong></div>
+                <div class="sale-preview" id="sale-preview"><span class="dot"></span><span>Cart awaiting evidence</span></div>
+              </div>
+
+              <div class="form-card">
+                <div class="card-title"><span class="card-index">01</span><div><h2>Farmer &amp; field</h2><p>Attach this sale to the field ledger.</p></div></div>
+                <div class="form-grid">
+                  <label>Farmer name<input name="farmerName" value="Asha Reddy" required /></label>
+                  <label>Field ID<input name="fieldId" value="GNT-14 · North plot" required /></label>
+                  <label>Crop<input name="crop" value="Chilli" required /></label>
+                  <label>Crop stage<select name="cropStage"><option>Flowering</option><option>Vegetative</option><option>Fruiting</option><option>Harvest</option><option value="">Unknown</option></select></label>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="card-title"><span class="card-index">02</span><div><h2>What is being sold?</h2><p>Record the request before discussing a product.</p></div></div>
+                <div class="form-grid">
+                  <label>Input type<select name="requestType"><option value="pesticide">Pesticide</option><option value="fertiliser">Fertiliser</option></select></label>
+                  <label>Requested product<input name="requestedProduct" value="LeafShield 300" /></label>
+                  <label class="full-span">Farmer-reported symptom<textarea name="symptom" rows="2">Yellowing lower leaves after rain; spots on a few plants.</textarea></label>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="card-title"><span class="card-index">03</span><div><h2>Evidence package</h2><p>Ambiguity belongs here—not in the invoice.</p></div></div>
+                <div class="form-grid">
+                  <label>Soil Health Card / test date<input type="date" name="soilReportDate" value="2024-01-11" /></label>
+                  <label>Last input &amp; date<input name="lastInput" value="Fungicide, 10 days ago" /></label>
+                </div>
+                <div class="evidence-row">
+                  <label class="upload-area" for="leaf-photo"><input id="leaf-photo" type="file" accept="image/*" /><span class="upload-icon">⌁</span><span><b id="photo-label">Demo leaf evidence (simulated)</b><small>Upload a whole-plant or close-up image for evidence review</small></span></label>
+                  <label class="toggle"><input type="checkbox" name="previousInputFailed" checked /><span></span> Prior input did not resolve the issue</label>
+                </div>
+              </div>
+
+              <button class="primary-button" type="submit"><span>Run evidence gate</span><strong>→</strong></button>
+              <p class="form-footnote" id="form-footnote">Demo mode uses a simulated leaf attachment. The gate never recommends a pesticide, fertiliser, dose, or application timing.</p>
+            </form>
+
+            <aside class="side-panel">
+              <div class="weather-card">
+                <div class="weather-header"><span>LIVE FIELD CONTEXT</span><b id="weather-live">Connecting…</b></div>
+                <div class="weather-main"><span class="weather-icon">◒</span><strong id="weather-temp">—°</strong><span id="weather-city">Guntur, Andhra Pradesh</span></div>
+                <div class="weather-grid"><div><small>NOW</small><b id="weather-rain">— mm</b><span>rain</span></div><div><small>TOMORROW</small><b id="weather-tomorrow">— mm</b><span>forecast rain</span></div></div>
+                <p>Live weather is context, never an instruction.</p>
+              </div>
+
+              <div class="ledger-card">
+                <div class="mini-title"><span>FIELD MEMORY</span><button data-section-target="field-memory">View ledger →</button></div>
+                <h3>GNT-14 · North plot</h3>
+                <div class="ledger-event warning"><i></i><div><b>10 days ago</b><span>Input recorded; no outcome improvement logged.</span></div></div>
+                <div class="ledger-event"><i></i><div><b>14 months ago</b><span>Soil report uploaded — now stale.</span></div></div>
+              </div>
+
+              <div class="principle-card"><span>THE PRINCIPLE</span><p>“When evidence conflicts, do not convert uncertainty into a sale.”</p></div>
+            </aside>
+          </div>
+
+          <section class="result-panel hidden" id="result-panel" aria-live="polite">
+            <div class="result-status" id="result-status"><div><span class="status-kicker">SALE STATE</span><h2>Evidence gate complete</h2><p id="result-summary">Reviewing the evidence package.</p></div><span class="big-status" id="big-status">PAUSED</span></div>
+            <div class="result-grid">
+              <div class="result-card"><span>WHY IT PAUSED</span><ul id="reason-list"></ul></div>
+              <div class="result-card"><span>WHAT TO COLLECT</span><ul id="evidence-list"></ul></div>
+              <div class="result-card summary-card"><span id="analysis-source">EVIDENCE SUMMARY</span><p id="farmer-message"></p><small>This language is explanatory only; sale state comes from deterministic policy.</small></div>
+            </div>
+            <div class="case-created"><div><span class="case-created-mark">↗</span><div><b id="extension-id">EXT-000000</b><p>Extension review case created and added to the queue.</p></div></div><button class="secondary-button" data-section-target="extension">Open queue</button></div>
+          </section>
+        </section>
+
+        <section class="view" id="field-memory">
+          <div class="view-heading compact"><div><p class="eyebrow">Farmer record</p><h1>Field memory prevents repeat mistakes.</h1><p class="lead">The ledger remembers outcomes—not just purchases.</p></div></div>
+          <div class="memory-layout">
+            <article class="profile-card"><div class="profile-avatar" id="profile-avatar">AR</div><div><p class="eyebrow">FARMER</p><h2 id="memory-farmer">Asha Reddy</h2><p id="memory-crop">Linked field · Chilli</p></div><span class="risk-badge" id="field-risk">Loading field record…</span></article>
+            <article class="timeline-card"><div class="mini-title"><span id="memory-field">GNT-14 · NORTH PLOT</span><b>Field history</b></div><div class="timeline" id="field-timeline"><div class="timeline-row critical"><span>07 Jul</span><i></i><div><b>LeafShield 300 recorded</b><p>Outcome not improved. Any repeat sale is gated.</p></div></div><div class="timeline-row"><span>11 Jan ’24</span><i></i><div><b>Soil Health Card uploaded</b><p>Report age is now outside the review window.</p></div></div></div></article>
+            <article class="memory-rule"><span>MEMORY RULE</span><h3>Previous failure changes the next sale.</h3><p>When an input did not resolve the recorded issue, the next similar sale goes to review instead of becoming a second guess.</p></article>
+          </div>
+        </section>
+
+        <section class="view" id="extension">
+          <div class="view-heading compact"><div><p class="eyebrow">Qualified review</p><h1>Extension queue</h1><p class="lead">Cases carry their evidence gap forward; reviewers do not start from a blank screen.</p></div></div>
+          <article class="queue-card" id="queue-card"><div class="queue-top"><div><span class="open-pill" id="queue-pill">OPEN</span><h2 id="queue-title">Yellowing chilli · GNT-14</h2><p id="queue-subtitle">Asha Reddy · counter case C-0327</p></div><button class="review-button" id="mark-evidence-received">Mark evidence received →</button></div><div class="queue-bottom"><div><span>NEEDED</span><p id="queue-evidence">Current soil test · Previous input outcome</p></div><div><span>POLICY</span><p>MG-1.0 · no recommendation while paused</p></div><div><span>SALE STATE</span><p id="queue-state">ON HOLD</p></div></div></article>
+          <p class="queue-note">The reviewer can clear a next step, but MittiGuard never generates chemical instructions.</p>
+        </section>
+
+        <section class="view" id="safety">
+          <div class="view-heading compact"><div><p class="eyebrow">Transparent evaluation</p><h1>Safety bench</h1><p class="lead">The claim is not disease-diagnosis accuracy. It is that ambiguity never becomes an automated input recommendation.</p></div></div>
+          <div class="bench-grid"><article class="bench-score"><span>POLICY FIXTURES</span><strong>8 / 8</strong><p>Deterministic safety cases passing</p><button class="secondary-button" id="copy-test-command">Copy test command</button></article><article class="bench-card"><h3>Hard negative: stale soil data</h3><p>A yellowing case with an old report must pause—even when a photo is present.</p><b>Expected: ON HOLD</b></article><article class="bench-card"><h3>Hard negative: failed repeat input</h3><p>A previous unsuccessful input must create review work, not a repeat sale.</p><b>Expected: ON HOLD</b></article><article class="bench-card"><h3>Complete evidence</h3><p>A complete case may proceed to qualified review, never automatic product authorization.</p><b>Expected: REVIEW REQUIRED</b></article></div>
+          <div class="bench-footnote">Run <code>npm test</code> to execute the included policy fixtures. Add validated local expert cases before any real deployment.</div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
