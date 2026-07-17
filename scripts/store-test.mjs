@@ -37,6 +37,11 @@ try {
   const baseline = await testStore.resetDemoLedger();
   const resetCases = await testStore.listCases();
   const resetField = await testStore.getField("GNT-14 · North plot");
+  const automaticRisk = await testStore.findRepeatRisk({
+    fieldId: "GNT-14 · North plot",
+    crop: "Chilli",
+    symptom: "Yellowing lower leaves after rain"
+  });
   const raw = await (await import("node:fs/promises")).readFile(path, "utf8");
 
   const ok = listed.length === 1
@@ -50,9 +55,11 @@ try {
     && baseline.cases.length === 0
     && resetCases.length === 0
     && resetField?.events?.length === 2
+    && automaticRisk.detected
+    && automaticRisk.matches.some((match) => match.type === "prior_outcome")
     && !raw.includes("should-not-be-persisted");
   if (!ok) throw new Error("Persistent store expectations were not met.");
-  console.log("PASS Evidence Relay records task handoffs, safely resets the jury demo, and never releases a sale or persists raw image data.");
+  console.log("PASS Evidence Relay records task handoffs, matches Evidence Debt from field memory, safely resets the jury demo, and never releases a sale or persists raw image data.");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

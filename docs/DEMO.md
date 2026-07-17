@@ -20,7 +20,7 @@ Say: “The voice transcript is browser capture with a typed fallback. Nova rece
 
 Click **Open Evidence Relay**. Pause on the invoice state changing to **PAUSED**.
 
-Say: “The deterministic policy found conflicts: yellowing without current soil evidence and a previous input that did not resolve the issue. The invoice is blocked. Nova creates an evidence-only brief; it cannot change this state.”
+Say: “The deterministic policy found conflicts: yellowing without current soil evidence and an automatic Field Memory match to an unresolved prior outcome. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
 
 ## 1:17–1:45 — The memorable handoff
 
@@ -44,6 +44,6 @@ Say: “If this farmer returns, the dealer does not start from a blank conversat
 
 ## 2:30–2:45 — Proof and close
 
-Open **Safety bench**. Say: “Eight deterministic policy fixtures, an Evidence Relay persistence test, a model-output guard, and a live Nova contract check support one narrow claim: ambiguity never becomes automated input authorization.”
+Open **Safety bench**. Say: “Nine deterministic policy fixtures, including automatic repeat-risk matching, an Evidence Relay persistence test, a model-output guard, and a live Nova contract check support one narrow claim: ambiguity never becomes automated input authorization.”
 
 End: “Farm-input decisions compound across livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security. It helps dealers stop selling blind—and recover the evidence a human needs to act responsibly.”

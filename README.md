@@ -10,9 +10,10 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 2. A deterministic policy engine pauses a sale when evidence is incomplete or conflicts.
 3. Amazon Nova Pro can create a constrained, multimodal evidence brief and image-context note. It cannot alter the sale state.
 4. The Evidence Relay creates exact evidence tasks, assigns a role, sets a 24-hour SLA, produces a copyable field handoff, and writes an audit trail.
-5. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
-6. Included fixtures prove the safety policy for ambiguous, missing-evidence, repeat-failure, complete-evidence, instruction-injection, and relay-state cases.
-7. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
+5. The server-side Repeat-Risk Matcher turns unresolved, similar field outcomes into **Evidence Debt**, even when the dealer does not report a failed prior input.
+6. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
+7. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
+8. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
 
 ## Run locally
 
@@ -42,7 +43,7 @@ npm run dev
 npm test
 ```
 
-The eight fixtures deliberately test the policy decision, not disease-diagnosis accuracy. Every fixture must end in either `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`; no policy path can approve a sale. The same test command also checks the server-side model-output guard.
+The nine fixtures deliberately test the policy decision, not disease-diagnosis accuracy. Every fixture must end in either `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`; no policy path can approve a sale. The same test command also checks the server-side model-output guard.
 
 With a live key configured, run the one-call contract check:
 

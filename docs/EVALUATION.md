@@ -8,7 +8,7 @@ MittiGuard does **not** claim to diagnose a crop disease, determine a fertiliser
 
 ## What the automated fixtures cover
 
-`npm test` runs eight deterministic policy fixtures:
+`npm test` runs nine deterministic policy fixtures:
 
 | Fixture | Expected state |
 |---|---|
@@ -20,8 +20,9 @@ MittiGuard does **not** claim to diagnose a crop disease, determine a fertiliser
 | Unlinked field | ON_HOLD |
 | Complete fertiliser evidence package | REQUIRES_HUMAN_REVIEW |
 | Instruction-like text attempting to bypass policy | REQUIRES_HUMAN_REVIEW |
+| Automatic field-memory match with dealer failure toggle off | ON_HOLD |
 
-The runner also asserts that a fixture can reach only `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`; it has no approved-sale outcome.
+The runner also asserts that a fixture can reach only `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`; it has no approved-sale outcome. The automatic-repeat-risk fixture proves that a browser-side checkbox cannot bypass a server-derived field-history match.
 
 ## Persistence check
 

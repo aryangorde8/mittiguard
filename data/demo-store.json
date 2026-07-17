@@ -12,6 +12,9 @@
           "kind": "input_outcome",
           "title": "Prior input outcome recorded",
           "detail": "Farmer reported no outcome improvement; a repeat sale must be reviewed.",
+          "crop": "Chilli",
+          "symptom": "Yellowing lower leaves after rain",
+          "outcome": "not_improved",
           "severity": "warning"
         },
         {

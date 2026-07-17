@@ -125,5 +125,26 @@
       "previousInputFailed": false
     },
     "expect": "REQUIRES_HUMAN_REVIEW"
+  },
+  {
+    "id": "MG-09",
+    "name": "Automatic field-memory match blocks a repeat even when dealer reports no failure",
+    "input": {
+      "photoProvided": true,
+      "fieldId": "GNT-14",
+      "crop": "Chilli",
+      "cropStage": "Flowering",
+      "symptom": "Yellowing lower leaves after rain",
+      "requestType": "pesticide",
+      "soilReportDate": "2026-06-15",
+      "lastInput": "No prior input reported by dealer",
+      "previousInputFailed": false,
+      "repeatRisk": {
+        "detected": true,
+        "matches": [{ "type": "prior_outcome", "id": "FIELD-EVENT-1", "signal": "yellowing" }],
+        "summary": "Field memory found 1 unresolved record with a similar symptom signal (yellowing)."
+      }
+    },
+    "expect": "ON_HOLD"
   }
 ]

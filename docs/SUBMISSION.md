@@ -20,6 +20,8 @@ MittiGuard Relay is a dealer-side evidence-recovery workflow that does the oppos
 
 When evidence conflicts, MittiGuard Relay changes the state of the work: the invoice becomes **ON HOLD**, exact evidence tasks are generated, a role is assigned, a 24-hour SLA starts, and a WhatsApp-ready handoff is prepared for the field team. Each step becomes an audit event in the persistent field-memory ledger. If the farmer returns after an unsuccessful input, the ledger makes that history visible before another sale occurs. Even after evidence is received, the hold remains until a qualified reviewer owns the next step.
 
+The most important safeguard is automatic: the server matches a new case against unresolved, similar field outcomes and creates **Evidence Debt**. Even if a dealer clears the “prior input failed” toggle, a matching field-history record still blocks the sale and routes it for review.
+
 MittiGuard never diagnoses disease or recommends a pesticide, fertiliser, dose, or timing. Its value is calibrated refusal: stopping a blind sale and turning uncertainty into an auditable evidence task.
 
 Farm-input decisions compound across farms, livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security; its focused contribution is to prevent one avoidable operational failure—an unsupported repeat input—from being treated as a confident decision.
@@ -32,6 +34,7 @@ Farm-input decisions compound across farms, livelihoods, soils, and food systems
 - Optional Amazon Nova Pro structured evidence brief with real image intake
 - Three-lane Evidence Relay: counter block, field capture, and extension review
 - Role-owned evidence tasks, SLA, copyable field handoff, and case audit trace
+- Server-side Repeat-Risk Matcher that creates Evidence Debt from unresolved field history
 - Live weather context from Open-Meteo
 - Persistent local field-memory ledger and extension-review queue
 - Evidence-received workflow that cannot silently clear a sale hold

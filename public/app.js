@@ -141,8 +141,10 @@ function renderResult(result) {
   $("#big-status").textContent = paused ? "PAUSED" : "REVIEW READY";
   $("#big-status").className = `big-status ${paused ? "paused" : "ready"}`;
   $("#result-status").className = `result-status ${paused ? "paused" : "ready"}`;
-  $("#result-summary").textContent = paused
-    ? "Policy stopped the invoice. An evidence relay is now assigned before a human reviewer can continue."
+  $("#result-summary").textContent = result.gate.repeatRisk?.detected
+    ? "Automatic Field Memory found unresolved evidence debt. Policy stopped the invoice before a repeat sale could be discussed."
+    : paused
+      ? "Policy stopped the invoice. An evidence relay is now assigned before a human reviewer can continue."
     : "Evidence is complete enough for qualified review. This is not product authorization.";
   $("#reason-list").innerHTML = listItems(result.gate.reasons, "No policy conflict detected.");
   $("#evidence-list").innerHTML = listItems(result.relay?.tasks?.map((task) => task.title) || result.gate.requiredEvidence, "No additional evidence required for the review package.");
@@ -191,7 +193,7 @@ function renderRelayCard(record) {
   const relay = record.relay || {};
   const remaining = openTasks(record);
   const overdue = relay.slaDueAt && new Date(relay.slaDueAt).valueOf() < Date.now() && remaining.length;
-  return `<button class="relay-case-card ${record.id === selectedRelayId ? "selected" : ""}" data-relay-case="${escapeHtml(record.id)}"><span>${escapeHtml(record.saleState.replaceAll("_", " "))}</span><b>${escapeHtml(record.crop)} · ${escapeHtml(record.field)}</b><p>${escapeHtml(record.symptom.split(";")[0])}</p><footer><i class="${overdue ? "overdue" : ""}"></i>${remaining.length} task${remaining.length === 1 ? "" : "s"} open <em>${escapeHtml(relay.owner?.name || "Unassigned")}</em></footer></button>`;
+  return `<button class="relay-case-card ${record.id === selectedRelayId ? "selected" : ""}" data-relay-case="${escapeHtml(record.id)}"><span>${escapeHtml(record.saleState.replaceAll("_", " "))}</span>${record.repeatRisk?.detected ? "<mark>Evidence Debt</mark>" : ""}<b>${escapeHtml(record.crop)} · ${escapeHtml(record.field)}</b><p>${escapeHtml(record.symptom.split(";")[0])}</p><footer><i class="${overdue ? "overdue" : ""}"></i>${remaining.length} task${remaining.length === 1 ? "" : "s"} open <em>${escapeHtml(relay.owner?.name || "Unassigned")}</em></footer></button>`;
 }
 
 function renderLane(selector, records, countSelector) {
@@ -242,7 +244,7 @@ function renderRelayDetail() {
   const relay = record.relay || { tasks: [], audit: [], owner: {} };
   const remaining = openTasks(record);
   $("#relay-case-title").textContent = `${record.crop} · ${record.field}`;
-  $("#relay-case-meta").textContent = `${record.farmer} · ${record.id} · owner: ${relay.owner?.name || "Unassigned"}`;
+  $("#relay-case-meta").textContent = `${record.farmer} · ${record.id} · owner: ${relay.owner?.name || "Unassigned"}${record.repeatRisk?.detected ? " · automatic Evidence Debt match" : ""}`;
   $("#relay-phase").textContent = relayPhaseLabel(relay.phase);
   $("#handoff-code").textContent = relay.handoffCode || record.id;
   $("#relay-sla").textContent = remaining.length ? `SLA due ${dateLabel(relay.slaDueAt, true)} · ${remaining.length} task${remaining.length === 1 ? "" : "s"} open` : "Evidence packet received · sale still on hold";

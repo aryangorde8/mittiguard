@@ -121,6 +121,7 @@ function caseSummary(caseData, gate) {
     previousInputFailed: caseData.previousInputFailed,
     soilReportDate: caseData.soilReportDate,
     weather: caseData.weather,
+    repeatRisk: caseData.repeatRisk,
     actualImageAttachedForModel: Boolean(parseImageDataUrl(caseData.photoDataUrl)),
     gate: { decision: gate.decision, reasons: gate.reasons, requiredEvidence: gate.requiredEvidence }
   });
@@ -147,7 +148,7 @@ function demoAssessment(caseData, gate) {
     caseData.symptom ? `Reported symptom: ${caseData.symptom}.` : "No symptom description was supplied.",
     caseData.crop ? `Crop context: ${caseData.crop}${caseData.cropStage ? `, ${caseData.cropStage}` : ""}.` : "Crop context is incomplete."
   ];
-  const conflicts = gate.reasons.filter((reason) => /Yellowing|unsuccessful|soil report/i.test(reason));
+  const conflicts = gate.reasons.filter((reason) => /Yellowing|unsuccessful|soil report|Automatic Field Memory/i.test(reason));
   return {
     observations,
     conflicts,
@@ -430,6 +431,9 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/api/assess") {
       const caseData = await readJson(req);
+      // Field memory is evaluated server-side. The dealer cannot turn off a
+      // repeat-risk match by clearing a client-side checkbox.
+      caseData.repeatRisk = await store.findRepeatRisk(caseData);
       const gate = evaluateGate(caseData);
       let assessment = demoAssessment(caseData, gate);
       let mode = "deterministic demo engine";
