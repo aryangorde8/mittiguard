@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,22 +92,55 @@ function assessmentText(assessment) {
   ].join(" ");
 }
 
+function requestedProductTerms(caseData = {}) {
+  return String(caseData.requestedProduct || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length >= 5 && !GENERIC_PRODUCT_TERMS.has(term));
+}
+
+function repeatsRequestedProduct(text, caseData = {}) {
+  const normalizedText = String(text || "").toLowerCase();
+  return requestedProductTerms(caseData).some((term) => normalizedText.includes(term));
+}
+
 export function enforceEvidenceOnlyAssessment(assessment, source, caseData = {}) {
   const text = assessmentText(assessment);
   if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
     throw new Error("Model response violated MittiGuard's evidence-only contract.");
   }
 
-  const requestedProductTerms = String(caseData.requestedProduct || "")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 5 && !GENERIC_PRODUCT_TERMS.has(term));
-  const normalizedText = text.toLowerCase();
-  if (requestedProductTerms.some((term) => normalizedText.includes(term))) {
+  if (repeatsRequestedProduct(text, caseData)) {
     throw new Error("Model response repeated a requested product.");
   }
 
   return sanitizeAssessment(assessment, source);
+}
+
+const ALLOWED_CROP_STAGES = new Set(["Vegetative", "Flowering", "Fruiting", "Harvest"]);
+const ALLOWED_EVIDENCE_GAPS = new Set(["field identity", "crop stage", "field image", "soil health card", "last input history", "previous outcome"]);
+
+export function enforceEvidenceIntakeDraft(draft, source, caseData = {}) {
+  const text = JSON.stringify(draft || {});
+  if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
+    throw new Error("Model intake draft violated MittiGuard's evidence-only contract.");
+  }
+  if (repeatsRequestedProduct(text, caseData)) {
+    throw new Error("Model intake draft repeated a requested product.");
+  }
+  const cropStage = ALLOWED_CROP_STAGES.has(draft?.cropStage) ? draft.cropStage : null;
+  const evidenceGaps = Array.isArray(draft?.evidenceGaps)
+    ? [...new Set(draft.evidenceGaps.filter((gap) => ALLOWED_EVIDENCE_GAPS.has(String(gap).toLowerCase())).map((gap) => String(gap).toLowerCase()))].slice(0, 6)
+    : [];
+  return {
+    crop: typeof draft?.crop === "string" ? draft.crop.slice(0, 80) : null,
+    cropStage,
+    symptom: typeof draft?.symptom === "string" ? draft.symptom.slice(0, 240) : null,
+    lastInputContext: typeof draft?.lastInputContext === "string" ? draft.lastInputContext.slice(0, 160) : null,
+    evidenceGaps,
+    reviewerNote: typeof draft?.reviewerNote === "string" ? draft.reviewerNote.slice(0, 260) : "Review the extracted evidence against the original field narrative.",
+    source
+  };
 }
 
 function configuredProvider() {
@@ -188,6 +222,100 @@ function demoAssessment(caseData, gate) {
     },
     source: "Deterministic demo engine"
   };
+}
+
+function demoIntakeDraft(caseData = {}) {
+  const gaps = [];
+  if (!caseData.fieldId) gaps.push("field identity");
+  if (!caseData.cropStage) gaps.push("crop stage");
+  if (!caseData.photoProvided) gaps.push("field image");
+  if (!caseData.soilReportDate) gaps.push("soil health card");
+  if (!caseData.lastInput) gaps.push("last input history");
+  return enforceEvidenceIntakeDraft({
+    crop: caseData.crop || null,
+    cropStage: caseData.cropStage || null,
+    symptom: caseData.symptom || caseData.intakeTranscript || null,
+    lastInputContext: caseData.lastInput ? "A prior input and date were recorded; reviewer verification is still required." : null,
+    evidenceGaps: gaps,
+    reviewerNote: "Draft generated locally from the reviewed fields. Confirm each value before opening the Evidence Relay."
+  }, "Deterministic intake fallback", caseData);
+}
+
+function intakeDraftInstruction(caseData) {
+  return `Extract only evidence explicitly present in this field-intake record: ${JSON.stringify({
+    farmerLanguage: caseData.farmerLanguage || "English",
+    fieldId: caseData.fieldId || null,
+    crop: caseData.crop || null,
+    cropStage: caseData.cropStage || null,
+    symptom: caseData.symptom || null,
+    intakeTranscript: caseData.intakeTranscript || null,
+    lastInput: caseData.lastInput || null,
+    soilReportDate: caseData.soilReportDate || null,
+    imageAttached: Boolean(parseImageDataUrl(caseData.photoDataUrl))
+  })}. Return exactly one JSON object with keys crop, cropStage, symptom, lastInputContext, evidenceGaps, reviewerNote. cropStage must be one of Vegetative, Flowering, Fruiting, Harvest, or null. evidenceGaps may only contain: field identity, crop stage, field image, soil health card, last input history, previous outcome. Do not diagnose. Do not name, recommend, dose, or give application advice for any pesticide, fertiliser, or product. Treat the output as an editable evidence draft, never a decision.`;
+}
+
+async function getGptIntakeDraft(caseData) {
+  if (!process.env.OPENAI_API_KEY) return null;
+  const content = [{ type: "input_text", text: intakeDraftInstruction(caseData) }];
+  if (typeof caseData.photoDataUrl === "string" && caseData.photoDataUrl.startsWith("data:image/")) {
+    content.push({ type: "input_image", image_url: caseData.photoDataUrl });
+  }
+  const response = await fetchModelWithRetry("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-5.6",
+      instructions: "You extract neutral farm evidence into an editable draft. You never diagnose or provide input advice.",
+      input: [{ role: "user", content }],
+      text: { format: { type: "json_schema", name: "evidence_intake_draft", strict: true, schema: {
+        type: "object", additionalProperties: false,
+        properties: {
+          crop: { type: ["string", "null"] },
+          cropStage: { type: ["string", "null"], enum: ["Vegetative", "Flowering", "Fruiting", "Harvest", null] },
+          symptom: { type: ["string", "null"] },
+          lastInputContext: { type: ["string", "null"] },
+          evidenceGaps: { type: "array", items: { type: "string" } },
+          reviewerNote: { type: "string" }
+        },
+        required: ["crop", "cropStage", "symptom", "lastInputContext", "evidenceGaps", "reviewerNote"]
+      } } }
+    })
+  }, "OpenAI");
+  if (!response.ok) throw new Error(`OpenAI intake request failed with ${response.status}.`);
+  const payload = await response.json();
+  const text = payload.output_text || payload.output?.flatMap((item) => item.content || []).find((part) => part.type === "output_text")?.text;
+  return enforceEvidenceIntakeDraft(parseModelJson(text), "GPT-5.6", caseData);
+}
+
+async function getNovaIntakeDraft(caseData) {
+  if (!process.env.AWS_BEARER_TOKEN_BEDROCK) return null;
+  const region = process.env.AWS_REGION || "us-east-1";
+  const model = process.env.NOVA_MODEL_ID || "amazon.nova-pro-v1:0";
+  const content = [{ text: intakeDraftInstruction(caseData) }];
+  const image = parseImageDataUrl(caseData.photoDataUrl);
+  if (image) content.push({ image: { format: image.format, source: { bytes: image.bytes } } });
+  const response = await fetchModelWithRetry(
+    `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(model)}/converse`,
+    {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system: [{ text: "You are MittiGuard's evidence intake assistant. Return neutral, editable evidence drafts only. You never diagnose crops or give input advice." }],
+        messages: [{ role: "user", content }],
+        inferenceConfig: { maxTokens: 420, temperature: 0 }
+      })
+    },
+    "Amazon Bedrock"
+  );
+  if (!response.ok) throw new Error(`Bedrock intake request failed with ${response.status}.`);
+  const payload = await response.json();
+  const text = payload.output?.message?.content?.find((part) => typeof part.text === "string")?.text;
+  return enforceEvidenceIntakeDraft(parseModelJson(text), "Amazon Nova Pro", caseData);
+}
+
+async function getLiveIntakeDraft(caseData) {
+  return configuredProvider() === "nova" ? getNovaIntakeDraft(caseData) : getGptIntakeDraft(caseData);
 }
 
 export async function getGptAssessment(caseData, gate) {
@@ -362,6 +490,52 @@ function extensionCaseFromRecord(record) {
   };
 }
 
+export function buildInvoiceGateReceipt({ record, gate, invoiceId }) {
+  const resolvedInvoiceId = String(invoiceId || record.externalInvoiceId || `LOCAL-${record.id}`).slice(0, 120);
+  const receiptPayload = {
+    invoiceId: resolvedInvoiceId,
+    caseId: record.id,
+    saleState: gate.saleState,
+    policyVersion: gate.policyVersion,
+    issuedAt: record.createdAt
+  };
+  const decisionDigest = createHash("sha256").update(JSON.stringify(receiptPayload)).digest("hex").slice(0, 16).toUpperCase();
+  return {
+    contract: "MittiGuard POS Gate v1",
+    receiptId: `MG-${decisionDigest}`,
+    decisionDigest,
+    invoiceId: resolvedInvoiceId,
+    saleAuthorization: "NOT_RELEASED",
+    saleState: gate.saleState,
+    policyVersion: gate.policyVersion,
+    evidenceCaseId: record.id,
+    handoffCode: record.relay?.handoffCode || record.id,
+    requiredEvidence: gate.requiredEvidence,
+    issuedAt: record.createdAt
+  };
+}
+
+async function openEvidenceRelay(caseData) {
+  // Field memory is evaluated server-side. The dealer cannot turn off a
+  // repeat-risk match by clearing a client-side checkbox.
+  caseData.repeatRisk = await store.findRepeatRisk(caseData);
+  const gate = evaluateGate(caseData);
+  let assessment = demoAssessment(caseData, gate);
+  let mode = "deterministic demo engine";
+  try {
+    const liveAssessment = await getLiveAssessment(caseData, gate);
+    if (liveAssessment) {
+      assessment = liveAssessment;
+      mode = `${assessment.source} evidence summary`;
+    }
+  } catch (error) {
+    console.warn(`Live evidence summary unavailable: ${error.message}`);
+    assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
+  }
+  const record = await store.createCase({ caseData, gate, assessment });
+  return { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, mode };
+}
+
 function parseCaseId(pathname) {
   const match = pathname.match(/^\/api\/cases\/(C-\d+)\/evidence-received$/);
   return match?.[1] || null;
@@ -393,7 +567,7 @@ const server = createServer(async (req, res) => {
         runtimeProvider: live.label,
         model: live.model,
         dataStore: "local JSON ledger",
-        workflow: "Evidence Relay v2"
+        workflow: "Evidence Relay v3"
       });
     }
 
@@ -402,6 +576,22 @@ const server = createServer(async (req, res) => {
       const lat = Number(url.searchParams.get("lat") || 16.3067);
       const lon = Number(url.searchParams.get("lon") || 80.4365);
       return sendJson(res, 200, await weatherSnapshot(lat, lon));
+    }
+
+    if (req.method === "POST" && path === "/api/intake/extract") {
+      const caseData = await readJson(req);
+      let draft = demoIntakeDraft(caseData);
+      let mode = "deterministic intake fallback";
+      try {
+        const liveDraft = await getLiveIntakeDraft(caseData);
+        if (liveDraft) {
+          draft = liveDraft;
+          mode = `${draft.source} evidence intake`;
+        }
+      } catch (error) {
+        console.warn(`Live intake extraction unavailable: ${error.message}`);
+      }
+      return sendJson(res, 200, { draft, mode, nonAuthoritative: true });
     }
 
     if (req.method === "POST" && path === "/api/demo/reset") {
@@ -418,7 +608,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path === "/api/relay") {
-      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v2" });
+      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v3" });
     }
 
     if (req.method === "GET" && path.startsWith("/api/fields/")) {
@@ -456,24 +646,23 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/api/assess") {
       const caseData = await readJson(req);
-      // Field memory is evaluated server-side. The dealer cannot turn off a
-      // repeat-risk match by clearing a client-side checkbox.
-      caseData.repeatRisk = await store.findRepeatRisk(caseData);
-      const gate = evaluateGate(caseData);
-      let assessment = demoAssessment(caseData, gate);
-      let mode = "deterministic demo engine";
-      try {
-        const liveAssessment = await getLiveAssessment(caseData, gate);
-        if (liveAssessment) {
-          assessment = liveAssessment;
-          mode = `${assessment.source} evidence summary`;
-        }
-      } catch (error) {
-        console.warn(`Live evidence summary unavailable: ${error.message}`);
-        assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
+      return sendJson(res, 200, await openEvidenceRelay(caseData));
+    }
+
+    if (req.method === "POST" && path === "/api/pos/authorize-sale") {
+      const body = await readJson(req);
+      const invoiceId = String(body.invoiceId || "").trim();
+      const caseData = body.case && typeof body.case === "object" ? body.case : body;
+      if (!invoiceId || invoiceId.length > 120) {
+        return sendJson(res, 400, { error: "A POS invoiceId (up to 120 characters) is required." });
       }
-      const record = await store.createCase({ caseData, gate, assessment });
-      return sendJson(res, 200, { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, mode });
+      caseData.externalInvoiceId = invoiceId;
+      caseData.intakeChannel = "POS_GATE_API";
+      const result = await openEvidenceRelay(caseData);
+      return sendJson(res, 200, {
+        ...result,
+        receipt: buildInvoiceGateReceipt({ record: result.case, gate: result.gate, invoiceId })
+      });
     }
 
     return serveStatic(req, res);

@@ -12,6 +12,7 @@ let demoMode = true;
 let relayCases = [];
 let selectedRelayId = null;
 let speechRecognition = null;
+let intakeDraft = null;
 
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
@@ -62,6 +63,7 @@ function resetDemo() {
   photoLabel.textContent = "Demo field evidence (simulated)";
   $("#form-footnote").textContent = "Demo mode uses simulated evidence. The policy never recommends a pesticide, fertiliser, dose, or application timing.";
   $("#voice-status").textContent = "Browser transcription is optional and not stored as audio.";
+  clearIntakeDraft();
   resultPanel.classList.add("hidden");
   $("#case-number").textContent = "READY";
   $("#sale-preview").className = "sale-preview";
@@ -78,6 +80,7 @@ function startLiveCase() {
   photoLabel.textContent = "Attach a whole-plant or close-up image";
   $("#form-footnote").textContent = "Live cases require an actual field image. Voice transcription remains text-only; no audio is persisted.";
   $("#voice-status").textContent = "Choose the farmer language, then capture or type the story.";
+  clearIntakeDraft();
   resultPanel.classList.add("hidden");
   $("#case-number").textContent = "NEW";
   $("#sale-preview").className = "sale-preview";
@@ -123,6 +126,67 @@ function dataFromForm() {
   data.previousInputFailed = form.elements.previousInputFailed.checked;
   data.weather = window.mittiWeather || null;
   return data;
+}
+
+function clearIntakeDraft() {
+  intakeDraft = null;
+  $("#intake-draft").classList.add("hidden");
+  $("#intake-draft-source").textContent = "Waiting for reviewed field evidence";
+  $("#draft-symptom").textContent = "—";
+  $("#draft-crop").textContent = "—";
+  $("#draft-gaps").textContent = "—";
+  $("#draft-note").textContent = "The model creates an evidence draft only. Confirm the source fields before opening the relay.";
+}
+
+function renderIntakeDraft(result) {
+  intakeDraft = result.draft;
+  $("#intake-draft-source").textContent = `${result.mode} · editable evidence only`;
+  $("#draft-symptom").textContent = intakeDraft.symptom || "No symptom could be extracted; keep the original wording.";
+  $("#draft-crop").textContent = [intakeDraft.crop, intakeDraft.cropStage].filter(Boolean).join(" · ") || "No crop or stage extracted.";
+  $("#draft-gaps").textContent = intakeDraft.evidenceGaps.length ? intakeDraft.evidenceGaps.join(" · ") : "No gap identified by the draft; policy will still verify the full packet.";
+  $("#draft-note").textContent = intakeDraft.reviewerNote;
+  $("#intake-draft").classList.remove("hidden");
+}
+
+async function extractIntakeDraft() {
+  const button = $("#extract-intake");
+  const hasNarrative = Boolean(form.elements.intakeTranscript.value.trim() || form.elements.symptom.value.trim());
+  if (!hasNarrative && !photoDataUrl) {
+    $("#voice-status").textContent = "Add a reviewed field narrative or image before extracting an evidence draft.";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Extracting evidence…";
+  try {
+    const response = await fetch("/api/intake/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dataFromForm())
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Evidence intake is unavailable.");
+    renderIntakeDraft(result);
+    $("#voice-status").textContent = "Evidence draft ready. Review it before applying any editable fields.";
+  } catch (error) {
+    $("#voice-status").textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Extract evidence draft →";
+  }
+}
+
+function applyIntakeDraft() {
+  if (!intakeDraft) return;
+  if (intakeDraft.crop) form.elements.crop.value = intakeDraft.crop;
+  if (intakeDraft.cropStage && [...form.elements.cropStage.options].some((option) => option.value === intakeDraft.cropStage)) {
+    form.elements.cropStage.value = intakeDraft.cropStage;
+  }
+  if (intakeDraft.symptom) form.elements.symptom.value = intakeDraft.symptom;
+  $("#voice-status").textContent = "Editable draft copied into the form. Confirm the original evidence before opening the relay.";
+}
+
+function newInvoiceId() {
+  return `COUNTER-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
 function imageEvidenceLabel(imageEvidence = {}) {
@@ -208,6 +272,9 @@ function renderResult(result) {
   $("#analysis-source").textContent = result.mode.toUpperCase();
   $("#image-evidence").textContent = imageEvidenceLabel(result.assessment.imageEvidence);
   $("#extension-id").textContent = `${result.relay?.handoffCode || result.extensionCase.id} · ${result.case.id}`;
+  $("#pos-receipt").textContent = result.receipt
+    ? `POS Gate ${result.receipt.receiptId} · ${result.receipt.invoiceId} · sale ${result.receipt.saleAuthorization.replaceAll("_", " ").toLowerCase()}.`
+    : "Case Desk path used. The POS Gate API can return the same no-release receipt to a billing system.";
   $("#case-number").textContent = result.case.id;
   $("#sale-preview").className = `sale-preview ${paused ? "held" : "review"}`;
   $("#sale-preview").innerHTML = paused ? "<span class=\"dot\"></span><span>Invoice blocked — relay required</span>" : "<span class=\"dot\"></span><span>Qualified review required</span>";
@@ -225,7 +292,11 @@ async function assess(event) {
   button.disabled = true;
   button.innerHTML = "<span>Building evidence relay…</span><strong>◌</strong>";
   try {
-    const response = await fetch("/api/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dataFromForm()) });
+    const response = await fetch("/api/pos/authorize-sale", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoiceId: newInvoiceId(), case: dataFromForm() })
+    });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "The evidence gate could not be reached.");
     renderResult(result);
@@ -493,6 +564,8 @@ $("#reset-demo-ledger").addEventListener("click", resetDemoLedger);
 $("#reset-demo-ledger-inline").addEventListener("click", resetDemoLedger);
 $("#new-live-case").addEventListener("click", startLiveCase);
 $("#voice-capture").addEventListener("click", startVoiceCapture);
+$("#extract-intake").addEventListener("click", extractIntakeDraft);
+$("#apply-intake-draft").addEventListener("click", applyIntakeDraft);
 $$(".nav-item").forEach((item) => item.addEventListener("click", () => switchSection(item.dataset.section)));
 $$("[data-section-target]").forEach((item) => item.addEventListener("click", () => switchSection(item.dataset.sectionTarget)));
 $("#copy-handoff").addEventListener("click", copyHandoff);

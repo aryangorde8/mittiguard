@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env server.mjs",
     "start": "node --env-file-if-exists=.env server.mjs",
-    "test": "node scripts/evaluate.mjs && node scripts/store-test.mjs && node scripts/model-guard-test.mjs",
+    "test": "node scripts/evaluate.mjs && node scripts/evidence-debt-benchmark.mjs && node scripts/pos-contract-test.mjs && node scripts/pos-endpoint-test.mjs && node scripts/store-test.mjs && node scripts/model-guard-test.mjs",
     "check": "node --check server.mjs && node --check public/app.js && npm test",
     "smoke:model": "node --env-file-if-exists=.env scripts/live-model-smoke.mjs",
     "smoke:gpt": "MODEL_PROVIDER=openai node --env-file-if-exists=.env scripts/live-model-smoke.mjs"

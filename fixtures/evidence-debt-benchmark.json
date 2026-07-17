@@ -1,0 +1,53 @@
+{
+  "name": "Evidence Debt adversarial benchmark",
+  "scope": "Synthetic cases derived from the app's documented lexical matching policy. This is not an agronomic validation set.",
+  "baseline": {
+    "version": 2,
+    "cases": [],
+    "fields": [
+      {
+        "id": "GNT-14 · North plot",
+        "farmerName": "Asha Reddy",
+        "crop": "Chilli",
+        "events": [
+          {
+            "id": "OUTCOME-001",
+            "at": "2026-06-20T09:00:00.000Z",
+            "kind": "input_outcome",
+            "title": "Previous input outcome not improved",
+            "detail": "The recorded issue did not improve after the prior input.",
+            "crop": "Chilli",
+            "symptom": "Yellowing lower leaves after rain",
+            "outcome": "not_improved"
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    { "id": "ED-P01", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing lower leaves after rain" }, "expectDetected": true },
+    { "id": "ED-P02", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing after rain in this plot" }, "expectDetected": true },
+    { "id": "ED-P03", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Rain-linked yellowing across the field" }, "expectDetected": true },
+    { "id": "ED-P04", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Pale yellowing symptoms returned after rain" }, "expectDetected": true },
+    { "id": "ED-P05", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing appeared when rain returned" }, "expectDetected": true },
+    { "id": "ED-P06", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing and rain damage are reported again" }, "expectDetected": true },
+    { "id": "ED-P07", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Leaves show yellowing after heavy rain" }, "expectDetected": true },
+    { "id": "ED-P08", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing returned after monsoon rain" }, "expectDetected": true },
+    { "id": "ED-P09", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Pale foliage and yellowing after rain" }, "expectDetected": true },
+    { "id": "ED-P10", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Rain followed by the same yellowing" }, "expectDetected": true },
+    { "id": "ED-P11", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing is back after rainfall" }, "expectDetected": true },
+    { "id": "ED-P12", "kind": "true_repeat", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "After rain, yellowing lower foliage returned" }, "expectDetected": true },
+    { "id": "ED-N01", "kind": "hard_negative", "input": { "fieldId": "GNT-15 · South plot", "crop": "Chilli", "symptom": "Yellowing lower leaves after rain" }, "expectDetected": false },
+    { "id": "ED-N02", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Cotton", "symptom": "Yellowing lower leaves after rain" }, "expectDetected": false },
+    { "id": "ED-N03", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Whitefly adults on new growth" }, "expectDetected": false },
+    { "id": "ED-N04", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Fruit splitting during heat" }, "expectDetected": false },
+    { "id": "ED-N05", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Stem lesion after pruning" }, "expectDetected": false },
+    { "id": "ED-N06", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellow fruit skin at harvest" }, "expectDetected": false },
+    { "id": "ED-N07", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Roots are soft after irrigation" }, "expectDetected": false },
+    { "id": "ED-N08", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Powdery coating on upper foliage" }, "expectDetected": false },
+    { "id": "ED-N09", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Aphids are under curled foliage" }, "expectDetected": false },
+    { "id": "ED-N10", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Mosaic pattern across new leaves" }, "expectDetected": false },
+    { "id": "ED-N11", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Yellowing leaves during dry heat" }, "expectDetected": false },
+    { "id": "ED-N12", "kind": "hard_negative", "input": { "fieldId": "GNT-14 · North plot", "crop": "Chilli", "symptom": "Rain damage to the support trellis" }, "expectDetected": false }
+  ]
+}

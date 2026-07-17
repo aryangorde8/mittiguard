@@ -6,19 +6,19 @@ Use the bundled demo case. Do not claim a real diagnosis, yield improvement, reg
 
 “A farmer arrives at a shop after rain with yellowing chilli leaves and a failed previous input. Most farm tools try to name a disease and sell a product. MittiGuard Relay does the opposite: it turns uncertainty into owned evidence work before the invoice is allowed to continue.”
 
-Before recording, use **Load clean jury demo** and confirm the reset. This gives the video one curated field history and no duplicate test cases.
+Before recording, use **Load clean jury demo** and confirm the reset. This gives the video one curated field history and no duplicate test cases. Then turn **off** “Prior input did not resolve the issue”; the whole point is to show that the server-side field-memory match still blocks the invoice.
 
 Show **Case intake** and the default demo story.
 
 ## 0:22–0:48 — Capture the real-world mess
 
-Point out the farmer language, optional voice-note transcript, crop stage, stale Soil Health Card date, failed prior input, simulated leaf attachment, and live weather context.
+Point out the farmer language, optional voice-note transcript, crop stage, stale Soil Health Card date, simulated leaf attachment, and live weather context. The dealer has cleared the prior-failure toggle. Click **Extract evidence draft** once and show that it creates editable evidence fields rather than advice or a sale decision.
 
 Say: “The voice transcript is browser capture with a typed fallback. Nova receives only the reviewed text plus an optional real image. The system does not retain audio.”
 
 ## 0:48–1:17 — The intervention
 
-Click **Open Evidence Relay**. Pause on the invoice state changing to **PAUSED**, then hold on the dark **Decision Room** evidence map.
+Click **Open Evidence Relay**. Pause on the **POS Gate** receipt stating “sale not released,” then hold on the invoice state changing to **PAUSED** and the dark **Decision Room** evidence map.
 
 Say: “The map shows the signals separately: story, image, soil, weather, and field memory. The deterministic policy found yellowing without current soil evidence and an automatic Field Memory match to an unresolved prior outcome. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
 
@@ -44,6 +44,6 @@ Say: “If this farmer returns, the dealer does not start from a blank conversat
 
 ## 2:30–2:45 — Proof and close
 
-Open **Safety bench**. Say: “Nine deterministic policy fixtures, including automatic repeat-risk matching, an Evidence Relay persistence test, a model-output guard, and a live Nova contract check support one narrow claim: ambiguity never becomes automated input authorization.”
+Open **Safety bench**. Say: “Nine deterministic policy fixtures, a 24-case adversarial Evidence Debt benchmark, a POS Gate contract test, relay persistence, and model-output guards support one narrow claim: ambiguity never becomes automated input authorization.”
 
 End: “Farm-input decisions compound across livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security. It helps dealers stop selling blind—and recover the evidence a human needs to act responsibly.”

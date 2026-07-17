@@ -6,7 +6,7 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 
 ## What it demonstrates
 
-1. A dealer captures the crop, symptom, field history, Soil Health Card age, optional browser voice-note transcript, and a live field photo.
+1. A dealer captures the crop, symptom, field history, Soil Health Card age, optional browser voice-note transcript, and a live field photo. Nova can turn the reviewed narrative and image into an editable evidence draft; it cannot authorize a sale.
 2. A deterministic policy engine pauses a sale when evidence is incomplete or conflicts.
 3. Amazon Nova Pro can create a constrained, multimodal evidence brief and image-context note. It cannot alter the sale state.
 4. The Evidence Relay creates exact evidence tasks, assigns a role, sets a 24-hour SLA, produces a copyable field handoff, and writes an audit trail.
@@ -15,6 +15,7 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 7. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
 8. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
 9. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
+10. The POS-facing `POST /api/pos/authorize-sale` contract returns a no-release receipt, decision digest, evidence-case ID, and handoff code for a billing system.
 
 ## Run locally
 
@@ -46,6 +47,8 @@ npm test
 
 The nine fixtures deliberately test the policy decision, not disease-diagnosis accuracy. Every fixture must end in either `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`; no policy path can approve a sale. The same test command also checks the server-side model-output guard.
 
+It also runs the transparent Evidence Debt benchmark: 24 synthetic adversarial records (12 repeat matches and 12 hard negatives). The current matcher is deliberately scoped to an exact field and crop plus at least two shared symptom signals. A passing synthetic fixture is not an agronomic validation claim.
+
 With a live key configured, run the one-call contract check:
 
 ```bash
@@ -65,7 +68,7 @@ Counter story + voice transcript + field evidence
             |                                           |
             +--> deterministic policy (`lib/policy.mjs`) --> invoice state
             |                                                   |
-            |                                                   +--> Evidence Relay tasks + owner + SLA + audit trail
+            |                                                   +--> POS Gate receipt + Evidence Relay tasks + owner + SLA + audit trail
             |                                                                 |
             |                                                                 +--> persistent case + field ledger (`data/store.json`)
 ```

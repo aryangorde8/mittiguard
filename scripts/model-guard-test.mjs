@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { enforceEvidenceOnlyAssessment } from "../server.mjs";
+import { enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
 
 const safeAssessment = {
   observations: ["Yellowing was reported after rain."],
@@ -28,4 +28,19 @@ assert.throws(
   /requested product/
 );
 
-console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes.");
+const safeDraft = enforceEvidenceIntakeDraft({
+  crop: "Chilli",
+  cropStage: "Flowering",
+  symptom: "Yellowing reported after rain.",
+  lastInputContext: "A previous input was mentioned; verify its date.",
+  evidenceGaps: ["soil health card", "previous outcome"],
+  reviewerNote: "Confirm the transcript before opening the relay."
+}, "test", caseData);
+assert.equal(safeDraft.cropStage, "Flowering");
+assert.deepEqual(safeDraft.evidenceGaps, ["soil health card", "previous outcome"]);
+assert.throws(
+  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Apply 15 ml to this field." }, "test", caseData),
+  /evidence-only contract/
+);
+
+console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes from both briefs and intake drafts.");

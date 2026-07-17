@@ -16,9 +16,9 @@ Work & Productivity
 
 Agri-input dealers are often the point where a farmer’s crop symptom becomes a pesticide or fertiliser purchase. But yellowing and leaf damage can reflect disease, nutrient stress, water stress, or an unresolved earlier treatment. Most farm apps turn that uncertainty into a confident-looking recommendation.
 
-MittiGuard Relay is a dealer-side evidence-recovery workflow that does the opposite. At the counter, it captures the field, crop stage, farmer language, optional voice-note transcript, symptom, Soil Health Card date, prior input outcome, a field photo, and live weather context. Amazon Nova Pro creates an evidence-only brief across this mixed context. A separate deterministic policy engine then decides whether the sale must be paused or can move to qualified human review.
+MittiGuard Relay is a dealer-side evidence-recovery workflow that does the opposite. At the counter, it captures the field, crop stage, farmer language, optional voice-note transcript, symptom, Soil Health Card date, prior input outcome, a field photo, and live weather context. Amazon Nova Pro turns reviewed unstructured evidence into an editable evidence draft and an evidence-only brief across this mixed context. A separate deterministic policy engine then decides whether the sale must be paused or can move to qualified human review.
 
-When evidence conflicts, MittiGuard Relay changes the state of the work: the invoice becomes **ON HOLD**, exact evidence tasks are generated, a role is assigned, a 24-hour SLA starts, and a WhatsApp-ready handoff is prepared for the field team. Each step becomes an audit event in the persistent field-memory ledger. If the farmer returns after an unsuccessful input, the ledger makes that history visible before another sale occurs. Even after evidence is received, the hold remains until a qualified reviewer owns the next step.
+When evidence conflicts, MittiGuard Relay changes the state of the work: the POS Gate returns **NOT RELEASED** with an auditable decision receipt, the invoice becomes **ON HOLD**, exact evidence tasks are generated, a role is assigned, a 24-hour SLA starts, and a WhatsApp-ready handoff is prepared for the field team. Each step becomes an audit event in the persistent field-memory ledger. If the farmer returns after an unsuccessful input, the ledger makes that history visible before another sale occurs. Even after evidence is received, the hold remains until a qualified reviewer owns the next step.
 
 The most important safeguard is automatic: the server matches a new case against unresolved, similar field outcomes and creates **Evidence Debt**. Even if a dealer clears the “prior input failed” toggle, a matching field-history record still blocks the sale and routes it for review.
 
@@ -30,16 +30,19 @@ Farm-input decisions compound across farms, livelihoods, soils, and food systems
 
 - Dealer-facing counter workflow for pesticide and fertiliser requests
 - Optional browser voice-note transcript with English, Telugu, Hindi, and Tamil selection
+- Constrained AI evidence-intake draft from reviewed voice/text and an optional real field image
 - Deterministic evidence gate: only `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`
 - Optional Amazon Nova Pro structured evidence brief with real image intake
 - Decision Room evidence map that separates model observations from deterministic sale control
 - Three-lane Evidence Relay: counter block, field capture, and extension review
 - Role-owned evidence tasks, SLA, copyable field handoff, and case audit trace
 - Server-side Repeat-Risk Matcher that creates Evidence Debt from unresolved field history
+- POS Gate API that returns a no-release invoice receipt, decision digest, and relay handoff
 - Live weather context from Open-Meteo
 - Persistent local field-memory ledger and extension-review queue
 - Evidence-received workflow that cannot silently clear a sale hold
 - Nine transparent safety fixtures plus a live model contract smoke test
+- 24-case synthetic adversarial Evidence Debt benchmark with explicit scope and hard negatives
 - Server-side guard that rejects dosage, action advice, and requested-product echoes from the model
 
 ## How we used Codex and GPT-5.6

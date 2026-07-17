@@ -11,7 +11,7 @@
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#case-desk" aria-label="MittiGuard Relay home"><span class="brand-mark">m</span><span>Mitti<span>Guard</span></span></a>
-        <p class="brand-kicker">Evidence Relay · v2</p>
+        <p class="brand-kicker">Evidence Relay · v3</p>
         <nav class="navigation" aria-label="Workspace">
           <button class="nav-item active" data-section="case-desk"><span>▦</span> Case intake</button>
           <button class="nav-item" data-section="relay"><span>◌</span> Evidence relay <b id="relay-count">0</b></button>
@@ -64,6 +64,8 @@
                   <label class="full-span">Voice-note transcript <textarea name="intakeTranscript" id="intake-transcript" rows="2" placeholder="Optional. Capture a farmer voice note or type the story here."></textarea></label>
                 </div>
                 <div class="voice-bar"><div><b>Voice intake</b><span id="voice-status">Browser transcription is optional and not stored as audio.</span></div><button class="secondary-button" type="button" id="voice-capture">◉ Capture voice note</button></div>
+                <div class="intake-ai-bar"><div><b>AI evidence intake</b><span>Turn the reviewed narrative and optional image into an editable evidence draft. It cannot authorize a sale.</span></div><button class="secondary-button" type="button" id="extract-intake">Extract evidence draft →</button></div>
+                <section class="intake-draft hidden" id="intake-draft" aria-live="polite"><div class="intake-draft-head"><div><span>NON-AUTHORITATIVE AI DRAFT</span><b id="intake-draft-source">Waiting for reviewed field evidence</b></div><button class="secondary-button" type="button" id="apply-intake-draft">Apply editable fields</button></div><div class="intake-draft-grid"><div><span>EXTRACTED SYMPTOM</span><p id="draft-symptom">—</p></div><div><span>CROP / STAGE</span><p id="draft-crop">—</p></div><div><span>EVIDENCE GAPS</span><p id="draft-gaps">—</p></div></div><p class="intake-draft-note" id="draft-note">The model creates an evidence draft only. Confirm the source fields before opening the relay.</p></section>
               </div>
 
               <div class="form-card">
@@ -102,7 +104,7 @@
               <footer class="decision-room-foot"><span>Automatic Evidence Debt is matched server-side from field history.</span><b id="decision-room-verdict">Waiting for a field case.</b></footer>
             </section>
             <div class="result-grid"><div class="result-card"><span>WHY IT PAUSED</span><ul id="reason-list"></ul></div><div class="result-card"><span>RELAY TASKS CREATED</span><ul id="evidence-list"></ul></div><div class="result-card summary-card"><span id="analysis-source">EVIDENCE BRIEF</span><p id="farmer-message"></p><small id="image-evidence">No image assessment yet.</small></div></div>
-            <div class="case-created"><div><span class="case-created-mark">↗</span><div><b id="extension-id">MG-CASE</b><p>Handoff code, evidence tasks, owner, SLA, and audit trail were created.</p></div></div><button class="secondary-button" data-section-target="relay">Open Evidence Relay</button></div>
+            <div class="case-created"><div><span class="case-created-mark">↗</span><div><b id="extension-id">MG-CASE</b><p>Handoff code, evidence tasks, owner, SLA, and audit trail were created.</p><small id="pos-receipt">POS Gate receipt will appear when the counter submits the invoice.</small></div></div><button class="secondary-button" data-section-target="relay">Open Evidence Relay</button></div>
           </section>
         </section>
 
@@ -121,8 +123,8 @@
 
         <section class="view" id="safety">
           <div class="view-heading compact"><div><p class="eyebrow">Transparent evaluation</p><h1>Safety bench</h1><p class="lead">The claim is not disease-diagnosis accuracy. It is that ambiguity never becomes automated input authorization.</p></div></div>
-          <div class="bench-grid"><article class="bench-score"><span>POLICY FIXTURES</span><strong>9 / 9</strong><p>All paths end in hold or qualified review.</p><button class="secondary-button" id="copy-test-command">Copy test command</button></article><article class="bench-card"><h3>Blocked sale</h3><p>Stale soil data, missing photos, failed inputs, and unlinked fields stop an invoice.</p><b>NO APPROVED-SALE STATE</b></article><article class="bench-card"><h3>Automatic Evidence Debt</h3><p>An unresolved, similar field outcome is matched server-side—even if the dealer clears the failed-input toggle.</p><b>DEALER CANNOT BYPASS IT</b></article><article class="bench-card"><h3>Evidence handoff</h3><p>Completing a task moves a relay stage only; it never releases the sale.</p><b>STATE REMAINS ON HOLD</b></article></div>
-          <div class="bench-footnote">Run <code>npm test</code> for policy fixtures, relay persistence, and model-output guard tests. Add locally validated expert cases before any real deployment.</div>
+          <div class="bench-grid"><article class="bench-score"><span>POLICY FIXTURES</span><strong>9 / 9</strong><p>All paths end in hold or qualified review.</p><button class="secondary-button" id="copy-test-command">Copy test command</button></article><article class="bench-card"><h3>Evidence Debt benchmark</h3><p>24 synthetic adversarial cases: exact field/crop boundary, 12 repeat matches, and 12 hard negatives.</p><b>100% ON THIS SCOPED FIXTURE</b></article><article class="bench-card"><h3>Blocked sale</h3><p>Stale soil data, missing photos, failed inputs, and unlinked fields stop an invoice.</p><b>NO APPROVED-SALE STATE</b></article><article class="bench-card"><h3>Automatic Evidence Debt</h3><p>An unresolved, similar field outcome is matched server-side—even if the dealer clears the failed-input toggle.</p><b>DEALER CANNOT BYPASS IT</b></article><article class="bench-card"><h3>POS Gate contract</h3><p>Counter software receives a receipt with a decision digest, hold state, relay case, and handoff code.</p><b>SALE NOT RELEASED</b></article><article class="bench-card"><h3>Evidence handoff</h3><p>Completing a task moves a relay stage only; it never releases the sale.</p><b>STATE REMAINS ON HOLD</b></article></div>
+          <div class="bench-footnote">Run <code>npm test</code> for policy fixtures, the scoped Evidence Debt benchmark, POS Gate contract, relay persistence, and model-output guard tests. Add locally validated expert cases before any real deployment.</div>
         </section>
       </main>
     </div>
