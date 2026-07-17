@@ -85,6 +85,22 @@
 
           <section class="result-panel hidden" id="result-panel" aria-live="polite">
             <div class="result-status" id="result-status"><div><span class="status-kicker">INVOICE STATE</span><h2>Evidence gate complete</h2><p id="result-summary">Reviewing the evidence package.</p></div><span class="big-status" id="big-status">PAUSED</span></div>
+            <section class="decision-room" id="decision-room" aria-label="Evidence decision room">
+              <header class="decision-room-head"><div><span>DECISION ROOM</span><h3>What the system saw—and what policy refused to infer.</h3></div><p><b>Model:</b> turns evidence into a brief <i>→</i> <b>Policy:</b> controls the sale</p></header>
+              <div class="decision-room-workspace">
+                <div class="evidence-map" aria-label="Evidence map">
+                  <div class="map-caption"><span>FIELD SIGNALS</span><b>Evidence map</b></div>
+                  <article class="evidence-node voice" id="map-voice"><span>VOICE / STORY</span><b id="map-voice-title">Field narrative captured</b><p id="map-voice-detail">—</p></article>
+                  <article class="evidence-node soil" id="map-soil"><span>SOIL CONTEXT</span><b id="map-soil-title">Soil record</b><p id="map-soil-detail">—</p></article>
+                  <article class="evidence-node photo" id="map-photo"><span>FIELD IMAGE</span><b id="map-photo-title">Photo evidence</b><p id="map-photo-detail">—</p></article>
+                  <article class="evidence-node memory" id="map-memory"><span>FIELD MEMORY</span><b id="map-memory-title">Prior outcome</b><p id="map-memory-detail">—</p></article>
+                  <article class="evidence-node weather" id="map-weather"><span>WEATHER CONTEXT</span><b id="map-weather-title">Weather signal</b><p id="map-weather-detail">—</p></article>
+                  <article class="policy-node" id="map-policy"><span>MG-1.0 GATE</span><strong id="map-policy-state">ON HOLD</strong><p id="map-policy-detail">Policy is reconciling evidence.</p></article>
+                </div>
+                <aside class="no-sell-control"><span class="control-kicker">SALE CONTROL</span><div class="control-state" id="control-state"><i></i><b>INVOICE BLOCKED</b></div><h3 id="control-headline">A model cannot turn a gap into a sale.</h3><p id="control-detail">Every conflicting signal becomes a human-owned evidence task.</p><div class="control-rule"><span>NON-NEGOTIABLE</span><b id="control-rule">No product, dose, or application advice is generated.</b></div></aside>
+              </div>
+              <footer class="decision-room-foot"><span>Automatic Evidence Debt is matched server-side from field history.</span><b id="decision-room-verdict">Waiting for a field case.</b></footer>
+            </section>
             <div class="result-grid"><div class="result-card"><span>WHY IT PAUSED</span><ul id="reason-list"></ul></div><div class="result-card"><span>RELAY TASKS CREATED</span><ul id="evidence-list"></ul></div><div class="result-card summary-card"><span id="analysis-source">EVIDENCE BRIEF</span><p id="farmer-message"></p><small id="image-evidence">No image assessment yet.</small></div></div>
             <div class="case-created"><div><span class="case-created-mark">↗</span><div><b id="extension-id">MG-CASE</b><p>Handoff code, evidence tasks, owner, SLA, and audit trail were created.</p></div></div><button class="secondary-button" data-section-target="relay">Open Evidence Relay</button></div>
           </section>

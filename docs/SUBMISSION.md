@@ -32,13 +32,14 @@ Farm-input decisions compound across farms, livelihoods, soils, and food systems
 - Optional browser voice-note transcript with English, Telugu, Hindi, and Tamil selection
 - Deterministic evidence gate: only `ON_HOLD` or `REQUIRES_HUMAN_REVIEW`
 - Optional Amazon Nova Pro structured evidence brief with real image intake
+- Decision Room evidence map that separates model observations from deterministic sale control
 - Three-lane Evidence Relay: counter block, field capture, and extension review
 - Role-owned evidence tasks, SLA, copyable field handoff, and case audit trace
 - Server-side Repeat-Risk Matcher that creates Evidence Debt from unresolved field history
 - Live weather context from Open-Meteo
 - Persistent local field-memory ledger and extension-review queue
 - Evidence-received workflow that cannot silently clear a sale hold
-- Eight transparent safety fixtures plus a live model contract smoke test
+- Nine transparent safety fixtures plus a live model contract smoke test
 - Server-side guard that rejects dosage, action advice, and requested-product echoes from the model
 
 ## How we used Codex and GPT-5.6

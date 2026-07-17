@@ -135,6 +135,62 @@ function imageEvidenceLabel(imageEvidence = {}) {
   return imageEvidence.reason ? `${labels[imageEvidence.status] || labels.not_assessed} ${imageEvidence.reason}` : (labels[imageEvidence.status] || labels.not_assessed);
 }
 
+function shorten(value = "", length = 88) {
+  const text = String(value).trim();
+  return text.length > length ? `${text.slice(0, length - 1).trim()}…` : text;
+}
+
+function setEvidenceNode(name, title, detail, state = "context") {
+  const node = $(`#map-${name}`);
+  node.className = `evidence-node ${name} ${state}`;
+  $(`#map-${name}-title`).textContent = title;
+  $(`#map-${name}-detail`).textContent = detail;
+}
+
+function renderDecisionRoom(result) {
+  const { case: record, gate } = result;
+  const weather = record.weather || window.mittiWeather || {};
+  const soil = gate.soil || {};
+  const repeatRisk = gate.repeatRisk || { detected: false };
+  const transcript = record.intakeTranscript || record.symptom || "No field narrative captured.";
+  const photoStatus = result.assessment?.imageEvidence?.status;
+  const soilTitle = soil.status === "current" ? "Current soil record" : soil.status === "stale" ? "Stale soil record" : "No soil record";
+  const soilDetail = soil.status === "stale"
+    ? `${soil.age} days old — cannot resolve yellowing safely.`
+    : soil.status === "current" ? "Available as context; policy still requires review." : "A current Soil Health Card is required.";
+  const photoDetail = record.photoAttached
+    ? imageEvidenceLabel(result.assessment?.imageEvidence)
+    : "No field image was attached to the evidence packet.";
+  const weatherDetail = weather.temperature == null
+    ? "Weather context is unavailable; it cannot alter the sale state."
+    : `${Math.round(weather.temperature)}°C · ${weather.precipitation ?? "—"} mm rain now · context only.`;
+  const paused = gate.decision === "PAUSED";
+
+  setEvidenceNode("voice", record.intakeTranscript ? "Voice narrative captured" : "Typed field narrative", shorten(transcript), "confirmed");
+  setEvidenceNode("soil", soilTitle, soilDetail, soil.status === "current" ? "confirmed" : "conflict");
+  setEvidenceNode("photo", record.photoAttached ? "Photo evidence attached" : "Photo evidence missing", photoDetail, record.photoAttached && photoStatus !== "limited" ? "confirmed" : "conflict");
+  setEvidenceNode("memory", repeatRisk.detected ? "Automatic Evidence Debt" : "No automatic match", repeatRisk.detected ? shorten(repeatRisk.summary || "A similar unresolved outcome exists in field memory.") : "Field memory is checked server-side on every intake.", repeatRisk.detected ? "conflict" : "confirmed");
+  setEvidenceNode("weather", "Weather context", weatherDetail, weather.temperature == null ? "context" : "confirmed");
+
+  $("#map-policy-state").textContent = gate.saleState.replaceAll("_", " ");
+  $("#map-policy-detail").textContent = paused
+    ? `${gate.reasons.length} conflict${gate.reasons.length === 1 ? "" : "s"} converted into evidence work.`
+    : "Evidence is routed to a qualified reviewer; no sale is released.";
+  $("#map-policy").className = `policy-node ${paused ? "blocked" : "review"}`;
+  $("#control-state").className = `control-state ${paused ? "blocked" : "review"}`;
+  $("#control-state b").textContent = paused ? "INVOICE BLOCKED" : "QUALIFIED REVIEW";
+  $("#control-headline").textContent = repeatRisk.detected
+    ? "Evidence Debt stopped a repeat sale."
+    : paused ? "The sale pauses before a guess becomes an invoice." : "A human reviewer owns the next step.";
+  $("#control-detail").textContent = repeatRisk.detected
+    ? "A related unresolved outcome was found in the field ledger. The dealer cannot clear this risk manually."
+    : "Every conflicting signal becomes an assigned evidence task. Completing tasks cannot release the sale.";
+  $("#control-rule").textContent = gate.safetyNote;
+  $("#decision-room-verdict").textContent = repeatRisk.detected
+    ? "MATCH FOUND · REVIEW REQUIRED"
+    : paused ? "EVIDENCE GAP · RELAY REQUIRED" : "REVIEW PACKET · HUMAN OWNER REQUIRED";
+}
+
 function renderResult(result) {
   currentCase = result.case;
   const paused = result.gate.decision === "PAUSED";
@@ -155,6 +211,7 @@ function renderResult(result) {
   $("#case-number").textContent = result.case.id;
   $("#sale-preview").className = `sale-preview ${paused ? "held" : "review"}`;
   $("#sale-preview").innerHTML = paused ? "<span class=\"dot\"></span><span>Invoice blocked — relay required</span>" : "<span class=\"dot\"></span><span>Qualified review required</span>";
+  renderDecisionRoom(result);
   resultPanel.classList.remove("hidden");
   selectedRelayId = result.case.id;
   loadFieldMemory(result.case.field);

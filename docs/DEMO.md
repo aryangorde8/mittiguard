@@ -18,9 +18,9 @@ Say: “The voice transcript is browser capture with a typed fallback. Nova rece
 
 ## 0:48–1:17 — The intervention
 
-Click **Open Evidence Relay**. Pause on the invoice state changing to **PAUSED**.
+Click **Open Evidence Relay**. Pause on the invoice state changing to **PAUSED**, then hold on the dark **Decision Room** evidence map.
 
-Say: “The deterministic policy found conflicts: yellowing without current soil evidence and an automatic Field Memory match to an unresolved prior outcome. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
+Say: “The map shows the signals separately: story, image, soil, weather, and field memory. The deterministic policy found yellowing without current soil evidence and an automatic Field Memory match to an unresolved prior outcome. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
 
 ## 1:17–1:45 — The memorable handoff
 

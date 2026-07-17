@@ -11,9 +11,10 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 3. Amazon Nova Pro can create a constrained, multimodal evidence brief and image-context note. It cannot alter the sale state.
 4. The Evidence Relay creates exact evidence tasks, assigns a role, sets a 24-hour SLA, produces a copyable field handoff, and writes an audit trail.
 5. The server-side Repeat-Risk Matcher turns unresolved, similar field outcomes into **Evidence Debt**, even when the dealer does not report a failed prior input.
-6. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
-7. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
-8. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
+6. The **Decision Room** makes the evidence path legible: voice/story, image, soil, weather, and field memory converge on a visibly separate deterministic sale gate.
+7. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
+8. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
+9. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
 
 ## Run locally
 
@@ -60,6 +61,8 @@ Counter story + voice transcript + field evidence
             |
             +--> Nova Pro evidence brief --> explanation and image context only
             |
+            +--> field-memory repeat-risk matcher --> Evidence Debt
+            |                                           |
             +--> deterministic policy (`lib/policy.mjs`) --> invoice state
             |                                                   |
             |                                                   +--> Evidence Relay tasks + owner + SLA + audit trail
