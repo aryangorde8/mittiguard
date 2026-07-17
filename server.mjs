@@ -16,6 +16,7 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".json": "application/json; charset=utf-8"
 };
+const TRANSIENT_NETWORK_CODES = new Set(["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT", "ENETUNREACH", "EAI_AGAIN"]);
 
 function send(res, status, payload, headers = {}) {
   res.writeHead(status, headers);
@@ -33,6 +34,29 @@ async function readJson(req) {
     if (body.length > 1_500_000) throw new Error("Request body is too large.");
   }
   return body ? JSON.parse(body) : {};
+}
+
+function isTransientNetworkError(error) {
+  const code = error?.cause?.code || error?.code;
+  return TRANSIENT_NETWORK_CODES.has(code);
+}
+
+async function fetchModelWithRetry(url, options, providerLabel) {
+  const attempts = 3;
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, { ...options, signal: AbortSignal.timeout(30_000) });
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts) break;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 600));
+    }
+  }
+
+  const code = lastError?.cause?.code || lastError?.code || "network_error";
+  throw new Error(`${providerLabel} could not be reached after ${attempts} attempts (${code}). Check the network, VPN, or firewall and retry.`, { cause: lastError });
 }
 
 function sanitizeAssessment(assessment = {}, source) {
@@ -180,7 +204,7 @@ export async function getGptAssessment(caseData, gate) {
     content.push({ type: "input_image", image_url: caseData.photoDataUrl });
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetchModelWithRetry("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -218,7 +242,7 @@ export async function getGptAssessment(caseData, gate) {
         }
       }
     })
-  });
+  }, "OpenAI");
 
   if (!response.ok) {
     const requestId = response.headers.get("x-request-id");
@@ -246,7 +270,7 @@ export async function getNovaAssessment(caseData, gate) {
   const image = parseImageDataUrl(caseData.photoDataUrl);
   if (image) content.push({ image: { format: image.format, source: { bytes: image.bytes } } });
 
-  const response = await fetch(
+  const response = await fetchModelWithRetry(
     `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(model)}/converse`,
     {
       method: "POST",
@@ -259,7 +283,8 @@ export async function getNovaAssessment(caseData, gate) {
         messages: [{ role: "user", content }],
         inferenceConfig: { maxTokens: 550, temperature: 0 }
       })
-    }
+    },
+    "Amazon Bedrock"
   );
 
   if (!response.ok) {
