@@ -51,6 +51,10 @@ The test suite uses an isolated temporary local ledger and verifies that:
 
 The isolated store test also verifies that a new case receives role-owned evidence tasks, an SLA, a copyable handoff, and an audit event. Recording a task may move the case from field capture to extension review, but it must leave `saleState` as `ON_HOLD`. This prevents “evidence received” from becoming a hidden approval path.
 
+## Outcome-loop check
+
+Only a case in extension review can record a neutral outcome: `NOT_IMPROVED`, `IMPROVED`, or `UNCERTAIN`. A `NOT_IMPROVED` event is stored as future field memory and can create Evidence Debt on a later similar case. The store test verifies that writing this event leaves the current case `ON_HOLD`; observed improvement is not a backdoor approval mechanism.
+
 ## Live-model contract check
 
 `npm run smoke:model` is intentionally separate because it makes one API call. It supplies a synthetic ambiguous case and asserts that the response has the required structured evidence-summary shape and contains neither a named product nor a dosage. The default configured provider is Amazon Nova Pro through Bedrock.

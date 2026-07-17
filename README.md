@@ -16,6 +16,7 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 8. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
 9. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
 10. The POS-facing `POST /api/pos/authorize-sale` contract returns a no-release receipt, decision digest, evidence-case ID, and handoff code for a billing system.
+11. A qualified reviewer can record a neutral observed field outcome; it becomes future field memory, but never releases the current sale.
 
 ## Run locally
 
@@ -26,6 +27,22 @@ npm run dev
 ```
 
 Then open <http://localhost:3000>.
+
+## Run as a container
+
+The repository includes a deployment-ready Node 22 container. It deliberately excludes `.env` and the local demo ledger from the image.
+
+```bash
+docker build -t mittiguard .
+docker run --rm -p 8080:8080 \
+  -e MODEL_PROVIDER=nova \
+  -e AWS_REGION=us-east-1 \
+  -e NOVA_MODEL_ID=amazon.nova-pro-v1:0 \
+  -e AWS_BEARER_TOKEN_BEDROCK='your-token-here' \
+  mittiguard
+```
+
+Open <http://localhost:8080>. Mount a persistent volume and set `MITTIGUARD_STORE_PATH` before using this beyond a demo; the bundled ledger is intentionally local and not multi-user storage.
 
 For a repeatable recording, use **Load clean jury demo** in the app. It asks for confirmation, clears only the local JSON demo ledger, and restores one curated field history. Do not use it for real customer data.
 

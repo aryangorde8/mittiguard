@@ -1,0 +1,12 @@
+.git
+.env
+node_modules
+data/store.json
+OPENAI_API_KEY has no text after =
+OPENAI_API_KEY is empty
+presentation.md
+presentation2.md
+presentation3.md
+presentation4.md
+presentation5.md
+presentation6.md

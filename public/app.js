@@ -366,6 +366,10 @@ function renderRelayDetail() {
     $("#handoff-message").textContent = "No handoff selected.";
     $("#relay-task-list").innerHTML = "";
     $("#relay-audit").innerHTML = "<p>Select a case to inspect each policy and handoff event.</p>";
+    $("#outcome-state").disabled = true;
+    $("#outcome-note").disabled = true;
+    $("#record-outcome").disabled = true;
+    $("#outcome-help").textContent = "Select a case after it reaches extension review to record an observed field outcome.";
     return;
   }
   selectedRelayId = record.id;
@@ -384,6 +388,19 @@ function renderRelayDetail() {
   ownerButton.disabled = !reviewReady || alreadyAcknowledged;
   ownerButton.textContent = !reviewReady ? "Complete capture tasks first" : (alreadyAcknowledged ? "Extension review acknowledged" : "Acknowledge extension review");
   $("#relay-task-list").innerHTML = relay.tasks?.map((task) => `<div class="relay-task ${task.status === "EVIDENCE_RECEIVED" ? "complete" : ""}"><span>${task.status === "EVIDENCE_RECEIVED" ? "✓" : "→"}</span><div><b>${escapeHtml(task.title)}</b><small>${escapeHtml(task.ownerRole.replaceAll("_", " "))} · due ${escapeHtml(dateLabel(task.dueAt, true))}</small>${task.note ? `<p>${escapeHtml(task.note)}</p>` : ""}</div><button class="task-action" data-task-id="${escapeHtml(task.id)}" ${task.status === "EVIDENCE_RECEIVED" ? "disabled" : ""}>${task.status === "EVIDENCE_RECEIVED" ? "Received" : "Record evidence"}</button></div>`).join("") || "<p>No evidence tasks are pending.</p>";
+  const outcomeReady = relay.phase === "EXTENSION_REVIEW";
+  const fieldOutcome = record.fieldOutcome;
+  $("#outcome-state").disabled = !outcomeReady;
+  $("#outcome-note").disabled = !outcomeReady;
+  $("#record-outcome").disabled = !outcomeReady;
+  $("#outcome-state").value = fieldOutcome?.state || "NOT_IMPROVED";
+  $("#outcome-note").value = fieldOutcome?.note || "";
+  $("#record-outcome").textContent = fieldOutcome ? "Update observed outcome" : "Record observed outcome";
+  $("#outcome-help").textContent = !outcomeReady
+    ? "Complete evidence capture first. Recording an outcome never releases the sale."
+    : fieldOutcome
+      ? `Recorded ${dateLabel(fieldOutcome.recordedAt, true)}. This observation changes future field-memory checks, not this sale state.`
+      : "Extension review can write a neutral observation into Field Memory. This cannot release the current sale.";
   $("#relay-audit").innerHTML = renderAudit(relay.audit);
   $$("[data-task-id]").forEach((button) => button.addEventListener("click", () => completeTask(button.dataset.taskId)));
 }
@@ -441,6 +458,31 @@ async function acknowledgeExtensionReview() {
     if (index >= 0) relayCases[index] = data.case;
     renderRelayBoard();
     renderRelayDetail();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = error.message;
+  }
+}
+
+async function recordFieldOutcome() {
+  const record = relayCases.find((item) => item.id === selectedRelayId);
+  if (!record) return;
+  const button = $("#record-outcome");
+  button.disabled = true;
+  button.textContent = "Writing outcome…";
+  try {
+    const response = await fetch(`/api/cases/${record.id}/field-outcome`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: $("#outcome-state").value, note: $("#outcome-note").value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to record the observed outcome.");
+    const index = relayCases.findIndex((item) => item.id === data.case.id);
+    if (index >= 0) relayCases[index] = data.case;
+    renderRelayBoard();
+    renderRelayDetail();
+    loadFieldMemory(data.case.field);
   } catch (error) {
     button.disabled = false;
     button.textContent = error.message;
@@ -570,6 +612,7 @@ $$(".nav-item").forEach((item) => item.addEventListener("click", () => switchSec
 $$("[data-section-target]").forEach((item) => item.addEventListener("click", () => switchSection(item.dataset.sectionTarget)));
 $("#copy-handoff").addEventListener("click", copyHandoff);
 $("#take-ownership").addEventListener("click", acknowledgeExtensionReview);
+$("#record-outcome").addEventListener("click", recordFieldOutcome);
 $("#copy-test-command").addEventListener("click", async () => {
   await navigator.clipboard?.writeText("npm test");
   $("#copy-test-command").textContent = "Copied: npm test";

@@ -41,6 +41,8 @@ Farm-input decisions compound across farms, livelihoods, soils, and food systems
 - Live weather context from Open-Meteo
 - Persistent local field-memory ledger and extension-review queue
 - Evidence-received workflow that cannot silently clear a sale hold
+- Extension-owned outcome loop that turns a neutral observed outcome into future Field Memory without releasing the current sale
+- Dockerfile for a reproducible Node 22 deployment
 - Nine transparent safety fixtures plus a live model contract smoke test
 - 24-case synthetic adversarial Evidence Debt benchmark with explicit scope and hard negatives
 - Server-side guard that rejects dosage, action advice, and requested-product echoes from the model

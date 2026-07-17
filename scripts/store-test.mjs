@@ -34,6 +34,8 @@ try {
   const firstTask = record.relay?.tasks?.[0];
   const updated = await testStore.recordTaskEvidence(record.id, firstTask.id, "Current evidence attached for reviewer verification.");
   const reviewed = await testStore.recordReview(record.id, "Evidence packet received.");
+  const outcome = await testStore.recordFieldOutcome(record.id, { state: "NOT_IMPROVED", note: "Same yellowing was observed at follow-up." });
+  const fieldAfterOutcome = await testStore.getField("TEST-01");
   const baseline = await testStore.resetDemoLedger();
   const resetCases = await testStore.listCases();
   const resetField = await testStore.getField("GNT-14 · North plot");
@@ -52,6 +54,9 @@ try {
     && reviewed.status === "EVIDENCE_RECEIVED"
     && reviewed.saleState === "ON_HOLD"
     && reviewed.relay?.phase === "EXTENSION_REVIEW"
+    && outcome.saleState === "ON_HOLD"
+    && outcome.fieldOutcome?.state === "NOT_IMPROVED"
+    && fieldAfterOutcome?.events?.some((event) => event.kind === "input_outcome" && event.outcome === "not_improved")
     && baseline.cases.length === 0
     && resetCases.length === 0
     && resetField?.events?.length === 2
@@ -59,7 +64,7 @@ try {
     && automaticRisk.matches.some((match) => match.type === "prior_outcome")
     && !raw.includes("should-not-be-persisted");
   if (!ok) throw new Error("Persistent store expectations were not met.");
-  console.log("PASS Evidence Relay records task handoffs, matches Evidence Debt from field memory, safely resets the jury demo, and never releases a sale or persists raw image data.");
+  console.log("PASS Evidence Relay records task handoffs and observed outcomes, matches Evidence Debt from field memory, safely resets the jury demo, and never releases a sale or persists raw image data.");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

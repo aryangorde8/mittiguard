@@ -36,6 +36,8 @@ Click **Record evidence** for the field task. The case moves to **Extension revi
 
 Say: “Evidence changed the workflow stage and owner. It did not clear the hold. There is no approved-sale state anywhere in this product.”
 
+Record **Not improved / unresolved** in the **Outcome loop** and show the new immutable audit event. Say: “This is how MittiGuard learns from the field without pretending the model diagnosed anything. The reviewer’s neutral observation becomes future Evidence Debt; this invoice remains on hold.”
+
 ## 2:10–2:30 — Memory prevents the next repeat mistake
 
 Open **Field memory**. Point to the relay evidence event and the failed prior input.

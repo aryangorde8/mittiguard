@@ -551,6 +551,11 @@ function parseAssignRoute(pathname) {
   return match?.[1] || null;
 }
 
+function parseOutcomeRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/field-outcome$/);
+  return match?.[1] || null;
+}
+
 function parseCaseDetailRoute(pathname) {
   const match = pathname.match(/^\/api\/cases\/(C-\d+)$/);
   return match?.[1] || null;
@@ -628,6 +633,13 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && assignCaseId) {
       const body = await readJson(req);
       const record = await store.assignCase(assignCaseId, body);
+      return sendJson(res, 200, { case: record, extensionCase: extensionCaseFromRecord(record) });
+    }
+
+    const outcomeCaseId = parseOutcomeRoute(path);
+    if (req.method === "POST" && outcomeCaseId) {
+      const body = await readJson(req);
+      const record = await store.recordFieldOutcome(outcomeCaseId, body);
       return sendJson(res, 200, { case: record, extensionCase: extensionCaseFromRecord(record) });
     }
 

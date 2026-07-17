@@ -60,11 +60,28 @@ try {
   assert.equal(result.receipt.saleAuthorization, "NOT_RELEASED");
   assert.equal(result.gate.saleState, "ON_HOLD");
 
+  const reviewResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/evidence-received`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note: "Evidence packet received for the outcome-loop test." })
+  });
+  assert.equal(reviewResponse.status, 200);
+  const outcomeResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/field-outcome`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state: "NOT_IMPROVED", note: "Yellowing remained at follow-up." })
+  });
+  const outcome = await outcomeResponse.json();
+  assert.equal(outcomeResponse.status, 200);
+  assert.equal(outcome.case.fieldOutcome.state, "NOT_IMPROVED");
+  assert.equal(outcome.case.saleState, "ON_HOLD");
+
   const cases = await fetch(`http://127.0.0.1:${port}/api/cases`).then((reply) => reply.json());
   assert.equal(cases.cases.length, 1);
   assert.equal(cases.cases[0].externalInvoiceId, "POS-INV-E2E-01");
   assert.equal(cases.cases[0].intakeChannel, "POS_GATE_API");
-  console.log("PASS POS Gate end-to-end HTTP contract persists a no-release invoice decision in an isolated ledger.");
+  assert.equal(cases.cases[0].fieldOutcome.state, "NOT_IMPROVED");
+  console.log("PASS POS Gate end-to-end HTTP contract persists a no-release invoice decision and outcome-loop observation in an isolated ledger.");
 } finally {
   child.kill("SIGTERM");
   await rm(directory, { recursive: true, force: true });
