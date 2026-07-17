@@ -19,57 +19,6 @@ const MIME_TYPES = {
 };
 const TRANSIENT_NETWORK_CODES = new Set(["UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT", "ENETUNREACH", "EAI_AGAIN"]);
 
-function positiveInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-const LIVE_MODEL_WINDOW_MS = positiveInteger(process.env.MODEL_RATE_LIMIT_WINDOW_MS, 60 * 60 * 1000);
-const LIVE_MODEL_PER_IP_LIMIT = positiveInteger(process.env.MODEL_RATE_LIMIT_PER_IP, 8);
-const LIVE_MODEL_GLOBAL_LIMIT = positiveInteger(process.env.MODEL_RATE_LIMIT_GLOBAL, 40);
-
-export function createSlidingWindowRateLimiter({ limit, windowMs, now = () => Date.now(), maxKeys = 512 }) {
-  const buckets = new Map();
-
-  function removeExpired(timestamp) {
-    const earliestAllowed = timestamp - windowMs;
-    for (const [key, hits] of buckets) {
-      const current = hits.filter((hit) => hit > earliestAllowed);
-      if (current.length) buckets.set(key, current);
-      else buckets.delete(key);
-    }
-  }
-
-  return {
-    take(key) {
-      const timestamp = now();
-      removeExpired(timestamp);
-      const hits = buckets.get(key) || [];
-      if (hits.length >= limit) {
-        const retryAfterMs = Math.max(0, hits[0] + windowMs - timestamp);
-        return { allowed: false, retryAfterSeconds: Math.ceil(retryAfterMs / 1000) };
-      }
-      if (!buckets.has(key) && buckets.size >= maxKeys) {
-        const oldestKey = buckets.keys().next().value;
-        if (oldestKey) buckets.delete(oldestKey);
-      }
-      hits.push(timestamp);
-      buckets.set(key, hits);
-      return { allowed: true, retryAfterSeconds: 0 };
-    }
-  };
-}
-
-const liveModelPerClientLimiter = createSlidingWindowRateLimiter({
-  limit: LIVE_MODEL_PER_IP_LIMIT,
-  windowMs: LIVE_MODEL_WINDOW_MS
-});
-const liveModelGlobalLimiter = createSlidingWindowRateLimiter({
-  limit: LIVE_MODEL_GLOBAL_LIMIT,
-  windowMs: LIVE_MODEL_WINDOW_MS,
-  maxKeys: 1
-});
-
 function send(res, status, payload, headers = {}) {
   res.writeHead(status, headers);
   res.end(payload);
@@ -91,21 +40,6 @@ async function readJson(req) {
 function isTransientNetworkError(error) {
   const code = error?.cause?.code || error?.code;
   return TRANSIENT_NETWORK_CODES.has(code);
-}
-
-function clientAddress(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.trim()) return forwarded.split(",")[0].trim().slice(0, 160);
-  return String(req.socket.remoteAddress || "unknown").slice(0, 160);
-}
-
-function liveModelAccess(req) {
-  if (!providerConfiguration().enabled) return { allowed: true, mode: null };
-  const byClient = liveModelPerClientLimiter.take(clientAddress(req));
-  if (!byClient.allowed) return { allowed: false, mode: "per-client", retryAfterSeconds: byClient.retryAfterSeconds };
-  const globally = liveModelGlobalLimiter.take("all");
-  if (!globally.allowed) return { allowed: false, mode: "service", retryAfterSeconds: globally.retryAfterSeconds };
-  return { allowed: true, mode: null };
 }
 
 async function fetchModelWithRetry(url, options, providerLabel) {
@@ -581,27 +515,22 @@ export function buildInvoiceGateReceipt({ record, gate, invoiceId }) {
   };
 }
 
-async function openEvidenceRelay(caseData, { useLiveModel = true } = {}) {
+async function openEvidenceRelay(caseData) {
   // Field memory is evaluated server-side. The dealer cannot turn off a
   // repeat-risk match by clearing a client-side checkbox.
   caseData.repeatRisk = await store.findRepeatRisk(caseData);
   const gate = evaluateGate(caseData);
   let assessment = demoAssessment(caseData, gate);
   let mode = "deterministic demo engine";
-  if (useLiveModel) {
-    try {
-      const liveAssessment = await getLiveAssessment(caseData, gate);
-      if (liveAssessment) {
-        assessment = liveAssessment;
-        mode = `${assessment.source} evidence summary`;
-      }
-    } catch (error) {
-      console.warn(`Live evidence summary unavailable: ${error.message}`);
-      assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
+  try {
+    const liveAssessment = await getLiveAssessment(caseData, gate);
+    if (liveAssessment) {
+      assessment = liveAssessment;
+      mode = `${assessment.source} evidence summary`;
     }
-  } else {
-    mode = "rate-limited deterministic demo engine";
-    assessment.fallbackNote = "The live evidence path is temporarily capped; the deterministic safety gate still ran.";
+  } catch (error) {
+    console.warn(`Live evidence summary unavailable: ${error.message}`);
+    assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
   }
   const record = await store.createCase({ caseData, gate, assessment });
   return { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, mode };
@@ -643,12 +572,7 @@ const server = createServer(async (req, res) => {
         runtimeProvider: live.label,
         model: live.model,
         dataStore: "local JSON ledger",
-        workflow: "Evidence Relay v3",
-        liveModelRateLimit: {
-          windowMinutes: Math.round(LIVE_MODEL_WINDOW_MS / 60_000),
-          perClient: LIVE_MODEL_PER_IP_LIMIT,
-          service: LIVE_MODEL_GLOBAL_LIMIT
-        }
+        workflow: "Evidence Relay v3"
       });
     }
 
@@ -663,20 +587,16 @@ const server = createServer(async (req, res) => {
       const caseData = await readJson(req);
       let draft = demoIntakeDraft(caseData);
       let mode = "deterministic intake fallback";
-      const access = liveModelAccess(req);
-      if (access.allowed) {
-        try {
-          const liveDraft = await getLiveIntakeDraft(caseData);
-          if (liveDraft) {
-            draft = liveDraft;
-            mode = `${draft.source} evidence intake`;
-          }
-        } catch (error) {
-          console.warn(`Live intake extraction unavailable: ${error.message}`);
+      try {
+        const liveDraft = await getLiveIntakeDraft(caseData);
+        if (liveDraft) {
+          draft = liveDraft;
+          mode = `${draft.source} evidence intake`;
         }
+      } catch (error) {
+        console.warn(`Live intake extraction unavailable: ${error.message}`);
       }
-      if (!access.allowed) mode = "rate-limited deterministic intake fallback";
-      return sendJson(res, 200, { draft, mode, nonAuthoritative: true, liveModelRateLimited: !access.allowed });
+      return sendJson(res, 200, { draft, mode, nonAuthoritative: true });
     }
 
     if (req.method === "POST" && path === "/api/demo/reset") {
@@ -738,8 +658,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/api/assess") {
       const caseData = await readJson(req);
-      const access = liveModelAccess(req);
-      return sendJson(res, 200, await openEvidenceRelay(caseData, { useLiveModel: access.allowed }));
+      return sendJson(res, 200, await openEvidenceRelay(caseData));
     }
 
     if (req.method === "POST" && path === "/api/pos/authorize-sale") {
@@ -751,8 +670,7 @@ const server = createServer(async (req, res) => {
       }
       caseData.externalInvoiceId = invoiceId;
       caseData.intakeChannel = "POS_GATE_API";
-      const access = liveModelAccess(req);
-      const result = await openEvidenceRelay(caseData, { useLiveModel: access.allowed });
+      const result = await openEvidenceRelay(caseData);
       return sendJson(res, 200, {
         ...result,
         receipt: buildInvoiceGateReceipt({ record: result.case, gate: result.gate, invoiceId })
