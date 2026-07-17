@@ -55,6 +55,7 @@ function sanitizeAssessment(assessment = {}, source) {
 
 const DOSAGE_PATTERN = /\b\d+(?:\.\d+)?\s?(?:ml|millilit(?:er|re)s?|g|grams?|kg|kilograms?|l|lit(?:er|re)s?)\b/i;
 const ACTION_ADVICE_PATTERN = /\b(?:you|farmer|grower)\s+(?:should|must|need to|can)\s+(?:apply|spray|mix|use|treat|drench|dose)\b|\b(?:apply|spray|mix|drench)\s+(?:\d|an?\s)/i;
+const GENERIC_PRODUCT_TERMS = new Set(["a", "an", "and", "chemical", "context", "fertiliser", "fertilizer", "input", "intentionally", "model", "named", "pesticide", "product", "requested", "the", "this", "withheld"]);
 
 function assessmentText(assessment) {
   return [
@@ -75,7 +76,7 @@ export function enforceEvidenceOnlyAssessment(assessment, source, caseData = {})
   const requestedProductTerms = String(caseData.requestedProduct || "")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 5);
+    .filter((term) => term.length >= 5 && !GENERIC_PRODUCT_TERMS.has(term));
   const normalizedText = text.toLowerCase();
   if (requestedProductTerms.some((term) => normalizedText.includes(term))) {
     throw new Error("Model response repeated a requested product.");

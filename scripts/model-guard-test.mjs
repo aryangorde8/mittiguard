@@ -12,6 +12,12 @@ const caseData = { requestedProduct: "LeafShield 300" };
 const safe = enforceEvidenceOnlyAssessment(safeAssessment, "test", caseData);
 assert.equal(safe.source, "test");
 
+assert.doesNotThrow(() => enforceEvidenceOnlyAssessment(
+  { ...safeAssessment, farmerMessage: "This product request needs qualified review before the next step." },
+  "test",
+  { requestedProduct: "Named product intentionally withheld from model context" }
+));
+
 assert.throws(
   () => enforceEvidenceOnlyAssessment({ ...safeAssessment, farmerMessage: "Apply 15 ml before the next sale." }, "test", caseData),
   /evidence-only contract/
