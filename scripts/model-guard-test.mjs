@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
+import { createSlidingWindowRateLimiter, enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
 
 const safeAssessment = {
   observations: ["Yellowing was reported after rain."],
@@ -43,4 +43,12 @@ assert.throws(
   /evidence-only contract/
 );
 
-console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes from both briefs and intake drafts.");
+let clock = 0;
+const limiter = createSlidingWindowRateLimiter({ limit: 2, windowMs: 1_000, now: () => clock });
+assert.equal(limiter.take("judge").allowed, true);
+assert.equal(limiter.take("judge").allowed, true);
+assert.equal(limiter.take("judge").allowed, false);
+clock = 1_001;
+assert.equal(limiter.take("judge").allowed, true);
+
+console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes from both briefs and intake drafts; live-model rate limiting safely falls back.");

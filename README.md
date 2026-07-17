@@ -56,6 +56,10 @@ npm run dev
 
 `AWS_BEARER_TOKEN_BEDROCK` is only read on the server and is never sent to the browser. `AWS_REGION` defaults to `us-east-1`; set it to the Bedrock region where Nova Pro is enabled for your account. The application uses Node's `--env-file-if-exists` option, so the same setup works with `npm run start`.
 
+### Public demo guardrail
+
+For a public live-model demo, configure the Bedrock token as a hosting-provider **secret**—never commit it or expose it in the browser. MittiGuard caps live model calls at 8 per client and 40 across the service each hour by default. When a cap is reached, the normal deterministic evidence draft or summary is returned and the sale gate remains enforced. You can adjust the caps only through server environment variables: `MODEL_RATE_LIMIT_PER_IP`, `MODEL_RATE_LIMIT_GLOBAL`, and `MODEL_RATE_LIMIT_WINDOW_MS`.
+
 ## Safety evaluation
 
 ```bash
