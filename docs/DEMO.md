@@ -1,41 +1,47 @@
-# MittiGuard demo — 2 minutes 40 seconds
+# MittiGuard Relay demo — 2 minutes 45 seconds
 
-Use the bundled demo case. Do not claim a real diagnosis, yield improvement, or regulatory approval.
+Use the bundled demo case. Do not claim a real diagnosis, yield improvement, regulatory approval, or live messaging integration.
 
-## 0:00–0:20 — The moment that matters
+## 0:00–0:22 — The failure we refuse
 
-“A farmer walks into an agri-input shop with yellowing chilli leaves. A typical app tries to name a disease and sell a product. MittiGuard does the opposite: it stops an unsupported sale at the counter.”
+“A farmer arrives at a shop after rain with yellowing chilli leaves and a failed previous input. Most farm tools try to name a disease and sell a product. MittiGuard Relay does the opposite: it turns uncertainty into owned evidence work before the invoice is allowed to continue.”
 
-Show the case desk with the cart awaiting evidence.
+Show **Case intake** and the default demo story.
 
-## 0:20–0:50 — Evidence, not a confidence score
+## 0:22–0:48 — Capture the real-world mess
 
-Point out the crop stage, reported symptom, stale Soil Health Card date, prior input outcome, simulated leaf attachment, and live weather card. Say: “A leaf symptom can conflict with soil and field history. The model summarizes that ambiguity; it does not diagnose or prescribe.”
+Point out the farmer language, optional voice-note transcript, crop stage, stale Soil Health Card date, failed prior input, simulated leaf attachment, and live weather context.
 
-## 0:50–1:20 — The visible intervention
+Say: “The voice transcript is browser capture with a typed fallback. Nova receives only the reviewed text plus an optional real image. The system does not retain audio.”
 
-Click **Run evidence gate**. Pause on the state change from “Cart awaiting evidence” to **PAUSED**.
+## 0:48–1:17 — The intervention
 
-Say: “The deterministic policy found two conflicts: yellowing with no current soil evidence, and a previous input that did not resolve the issue. The invoice is paused. No chemical recommendation is generated.”
+Click **Open Evidence Relay**. Pause on the invoice state changing to **PAUSED**.
 
-## 1:20–1:45 — Model and determinism, deliberately separated
+Say: “The deterministic policy found conflicts: yellowing without current soil evidence and a previous input that did not resolve the issue. The invoice is blocked. Nova creates an evidence-only brief; it cannot change this state.”
 
-Show the evidence summary card. Explain: “Amazon Nova Pro reconciles the photo and structured context into a human-readable evidence summary. The policy engine—not the model—controls the sale state. A model response cannot clear the hold.”
+## 1:17–1:45 — The memorable handoff
 
-If the key is configured, the header shows **Amazon Nova Pro evidence path active**. Otherwise state that the offline demo path is running and show `npm run smoke:model` in the terminal separately after configuring the key.
+Open **Evidence Relay**. Show the three lanes: **Counter block**, **Field capture**, and **Extension review**. Select the newly created card.
 
-## 1:45–2:10 — Memory changes the next sale
+Say: “This is the difference between a warning and an operations system. MittiGuard generated two exact tasks, assigned the field-capture role, set a 24-hour SLA, and prepared a WhatsApp-ready request. It does not send a message itself; the handoff stays reviewable.”
 
-Open **Field memory**. Point to the failed previous input and the new “Input sale paused” event. Say: “This is not a one-off chat. If the farmer returns, the ledger prevents the same unresolved problem from becoming another sale.”
+Click **Copy WhatsApp-ready request** and show the handoff code, task list, and audit trace.
 
-## 2:10–2:30 — Human ownership stays intact
+## 1:45–2:10 — Evidence can move; the sale cannot
 
-Open **Extension queue** and click **Mark evidence received**. The button records evidence but the state remains **SALE STILL ON HOLD**.
+Click **Record evidence** for the field task. The case moves to **Extension review**. Then click **Acknowledge extension review**.
 
-Say: “A reviewer owns the next step. Receiving evidence does not silently turn a hold into a product approval.”
+Say: “Evidence changed the workflow stage and owner. It did not clear the hold. There is no approved-sale state anywhere in this product.”
 
-## 2:30–2:40 — Proof and close
+## 2:10–2:30 — Memory prevents the next repeat mistake
 
-Open **Safety bench**. Say: “Eight policy fixtures, including stale soil data, missing photos, failed repeats, and a prompt-injection attempt, all end in a hold or human review. That is the claim we can stand behind.”
+Open **Field memory**. Point to the relay evidence event and the failed prior input.
 
-End: “MittiGuard does not help dealers sell more inputs. It helps them avoid selling blind.”
+Say: “If this farmer returns, the dealer does not start from a blank conversation. The field ledger makes the unresolved outcome visible before another sale.”
+
+## 2:30–2:45 — Proof and close
+
+Open **Safety bench**. Say: “Eight deterministic policy fixtures, an Evidence Relay persistence test, a model-output guard, and a live Nova contract check support one narrow claim: ambiguity never becomes automated input authorization.”
+
+End: “MittiGuard Relay does not help dealers sell more inputs. It helps them stop selling blind—and recover the evidence a human needs to act responsibly.”

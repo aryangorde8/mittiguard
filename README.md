@@ -1,17 +1,18 @@
-# MittiGuard
+# MittiGuard Relay
 
-**Don’t sell blind.** MittiGuard is an evidence gate for agri-input dealers and extension teams. It turns an ambiguous counter request into a field-linked review case before an unsupported pesticide or fertiliser sale is made.
+**Don’t sell blind.** MittiGuard Relay is an evidence-recovery workflow for agri-input dealers and extension teams. It turns an ambiguous counter request into field-capture tasks, a human-owned review handoff, and a persistent audit trail before an unsupported pesticide or fertiliser sale is made.
 
 It is a hackathon prototype, not an agronomic diagnostic or recommendation system. It never generates chemical products, doses, or application instructions.
 
 ## What it demonstrates
 
-1. A dealer captures crop, symptom, Soil Health Card age, prior input history, and a field photo.
+1. A dealer captures the crop, symptom, field history, Soil Health Card age, optional browser voice-note transcript, and a live field photo.
 2. A deterministic policy engine pauses a sale when evidence is incomplete or conflicts.
-3. An optional Amazon Nova Pro / Bedrock call writes an evidence-only summary in a strict JSON shape. It cannot alter the sale state.
-4. The app creates a persistent extension-review case and a field-ledger event; recording evidence received still does not clear the sale hold.
-5. Included fixtures prove the safety policy for ambiguous, missing-evidence, repeat-failure, complete-evidence, and instruction-injection cases.
-6. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
+3. Amazon Nova Pro can create a constrained, multimodal evidence brief and image-context note. It cannot alter the sale state.
+4. The Evidence Relay creates exact evidence tasks, assigns a role, sets a 24-hour SLA, produces a copyable field handoff, and writes an audit trail.
+5. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
+6. Included fixtures prove the safety policy for ambiguous, missing-evidence, repeat-failure, complete-evidence, instruction-injection, and relay-state cases.
+7. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
 
 ## Run locally
 
@@ -52,24 +53,27 @@ It uses a synthetic ambiguous case and checks that Amazon Nova Pro returns the r
 ## Architecture
 
 ```text
-Counter case + field evidence
+Counter story + voice transcript + field evidence
             |
-            +--> deterministic policy (`lib/policy.mjs`) --> sale state
+            +--> Nova Pro evidence brief --> explanation and image context only
+            |
+            +--> deterministic policy (`lib/policy.mjs`) --> invoice state
             |                                                   |
-            |                                                   +--> persistent case + field ledger (`data/store.json`)
-            |
-            +--> optional Nova Pro evidence summary --> explanation only
+            |                                                   +--> Evidence Relay tasks + owner + SLA + audit trail
+            |                                                                 |
+            |                                                                 +--> persistent case + field ledger (`data/store.json`)
 ```
 
 ## Built with Codex and GPT-5.6
 
-Codex using GPT-5.6 accelerated the full-stack prototype: product architecture, the deterministic policy, test fixtures, UI, provider abstraction, and submission materials. The deployed live evidence summary uses Amazon Nova Pro through Bedrock so the project can be demonstrated without OpenAI API billing. All consequential sale-state changes stay deterministic and auditable. See the [Codex collaboration record](docs/CODEX_COLLABORATION.md) for the specific decisions and inspectable evidence.
+Codex using GPT-5.6 accelerated the full-stack prototype: product architecture, deterministic policy, Evidence Relay state model, test fixtures, UI, provider abstraction, and submission materials. The deployed live evidence brief uses Amazon Nova Pro through Bedrock so the project can be demonstrated without OpenAI API billing. All consequential sale-state changes stay deterministic and auditable. See the [Codex collaboration record](docs/CODEX_COLLABORATION.md) for the specific decisions and inspectable evidence.
 
 ## Current limits
 
 - The persistent ledger is a local JSON store for a self-contained demo, not a multi-user database.
 - Weather comes from Open-Meteo and is presented as context, never as action advice.
 - A real photo uploaded in a live case is included in the optional Nova Pro evidence request. The default demo case uses a clearly labelled simulated attachment; a production build would add consent, retention, and local evidence-validation controls.
+- Voice intake uses browser speech recognition when available and stores only the reviewed transcript, never audio. The WhatsApp-ready handoff is copyable text, not a messaging integration.
 - MittiGuard is not a disease classifier, pesticide recommender, or compliance certification system.
 
 ## Hackathon materials

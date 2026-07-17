@@ -31,15 +31,22 @@ try {
   });
   const listed = await testStore.listCases();
   const field = await testStore.getField("TEST-01");
+  const firstTask = record.relay?.tasks?.[0];
+  const updated = await testStore.recordTaskEvidence(record.id, firstTask.id, "Current evidence attached for reviewer verification.");
   const reviewed = await testStore.recordReview(record.id, "Evidence packet received.");
   const raw = await (await import("node:fs/promises")).readFile(path, "utf8");
 
   const ok = listed.length === 1
     && field?.events?.length === 1
+    && record.relay?.tasks?.length > 0
+    && updated.saleState === "ON_HOLD"
+    && updated.relay?.audit?.some((event) => event.kind === "evidence")
     && reviewed.status === "EVIDENCE_RECEIVED"
+    && reviewed.saleState === "ON_HOLD"
+    && reviewed.relay?.phase === "EXTENSION_REVIEW"
     && !raw.includes("should-not-be-persisted");
   if (!ok) throw new Error("Persistent store expectations were not met.");
-  console.log("PASS persistent store records case state, field memory, and review updates without raw image data.");
+  console.log("PASS Evidence Relay records task handoffs and audit history without releasing a sale or persisting raw image data.");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

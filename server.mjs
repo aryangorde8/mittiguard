@@ -36,11 +36,19 @@ async function readJson(req) {
 }
 
 function sanitizeAssessment(assessment = {}, source) {
+  const image = assessment.imageEvidence || {};
+  const imageStatus = ["usable", "limited", "not_assessed", "not_provided"].includes(image.status)
+    ? image.status
+    : "not_assessed";
   return {
     observations: Array.isArray(assessment.observations) ? assessment.observations.slice(0, 4) : [],
     conflicts: Array.isArray(assessment.conflicts) ? assessment.conflicts.slice(0, 4) : [],
     questions: Array.isArray(assessment.questions) ? assessment.questions.slice(0, 4) : [],
     farmerMessage: typeof assessment.farmerMessage === "string" ? assessment.farmerMessage.slice(0, 420) : "",
+    imageEvidence: {
+      status: imageStatus,
+      reason: typeof image.reason === "string" ? image.reason.slice(0, 220) : "No diagnostic conclusion is drawn from the image."
+    },
     source
   };
 }
@@ -53,7 +61,8 @@ function assessmentText(assessment) {
     ...(Array.isArray(assessment.observations) ? assessment.observations : []),
     ...(Array.isArray(assessment.conflicts) ? assessment.conflicts : []),
     ...(Array.isArray(assessment.questions) ? assessment.questions : []),
-    assessment.farmerMessage || ""
+    assessment.farmerMessage || "",
+    assessment.imageEvidence?.reason || ""
   ].join(" ");
 }
 
@@ -103,12 +112,15 @@ function caseSummary(caseData, gate) {
   return JSON.stringify({
     crop: caseData.crop,
     cropStage: caseData.cropStage,
+    farmerLanguage: caseData.farmerLanguage || "English",
+    intakeTranscript: caseData.intakeTranscript || null,
     symptom: caseData.symptom,
     requestType: caseData.requestType,
     lastInput: caseData.lastInput,
     previousInputFailed: caseData.previousInputFailed,
     soilReportDate: caseData.soilReportDate,
     weather: caseData.weather,
+    actualImageAttachedForModel: Boolean(parseImageDataUrl(caseData.photoDataUrl)),
     gate: { decision: gate.decision, reasons: gate.reasons, requiredEvidence: gate.requiredEvidence }
   });
 }
@@ -142,6 +154,12 @@ function demoAssessment(caseData, gate) {
     farmerMessage: gate.decision === "PAUSED"
       ? "Your field needs a little more evidence before another input is sold. We have opened a review case instead of guessing."
       : "The evidence package is complete enough for a qualified reviewer. MittiGuard will not recommend a product or dose.",
+    imageEvidence: {
+      status: caseData.photoDataUrl ? "not_assessed" : "not_provided",
+      reason: caseData.photoDataUrl
+        ? "An image was attached for evidence context; no diagnostic conclusion is generated."
+        : "No actual image bytes were supplied to the live evidence path."
+    },
     source: "Deterministic demo engine"
   };
 }
@@ -182,9 +200,18 @@ export async function getGptAssessment(caseData, gate) {
               observations: { type: "array", items: { type: "string" } },
               conflicts: { type: "array", items: { type: "string" } },
               questions: { type: "array", items: { type: "string" } },
-              farmerMessage: { type: "string" }
+              farmerMessage: { type: "string" },
+              imageEvidence: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  status: { type: "string", enum: ["usable", "limited", "not_assessed", "not_provided"] },
+                  reason: { type: "string" }
+                },
+                required: ["status", "reason"]
+              }
             },
-            required: ["observations", "conflicts", "questions", "farmerMessage"]
+            required: ["observations", "conflicts", "questions", "farmerMessage", "imageEvidence"]
           }
         }
       }
@@ -212,7 +239,7 @@ export async function getNovaAssessment(caseData, gate) {
   const region = process.env.AWS_REGION || "us-east-1";
   const model = process.env.NOVA_MODEL_ID || "amazon.nova-pro-v1:0";
   const content = [{
-    text: `Field case and fixed gate result:\n${caseSummary(caseData, gate)}\n\nReturn exactly one valid JSON object with this shape: {"observations":["..."],"conflicts":["..."],"questions":["..."],"farmerMessage":"..."}. No Markdown. Do not diagnose a crop disease. Do not recommend or name a pesticide, fertiliser, product, dosage, timing, or treatment. The fixed gate state cannot be changed.`
+    text: `Field case and fixed gate result:\n${caseSummary(caseData, gate)}\n\nReturn exactly one valid JSON object with this shape: {"observations":["..."],"conflicts":["..."],"questions":["..."],"farmerMessage":"...","imageEvidence":{"status":"usable|limited|not_assessed|not_provided","reason":"..."}}. If actualImageAttachedForModel is false, imageEvidence.status must be not_assessed or not_provided. No Markdown. Do not diagnose a crop disease. Do not recommend or name a pesticide, fertiliser, product, dosage, timing, or treatment. The fixed gate state cannot be changed.`
   }];
   const image = parseImageDataUrl(caseData.photoDataUrl);
   if (image) content.push({ image: { format: image.format, source: { bytes: image.bytes } } });
@@ -303,12 +330,28 @@ function extensionCaseFromRecord(record) {
     crop: record.crop,
     createdAt: record.createdAt,
     requiredEvidence: record.requiredEvidence,
-    summary: record.reasons[0] || "Evidence package requires qualified review."
+    summary: record.reasons[0] || "Evidence package requires qualified review.",
+    relay: record.relay
   };
 }
 
 function parseCaseId(pathname) {
   const match = pathname.match(/^\/api\/cases\/(C-\d+)\/evidence-received$/);
+  return match?.[1] || null;
+}
+
+function parseTaskRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/tasks\/(T-[A-Za-z0-9-]+)\/evidence-received$/);
+  return match ? { caseId: match[1], taskId: match[2] } : null;
+}
+
+function parseAssignRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/assign$/);
+  return match?.[1] || null;
+}
+
+function parseCaseDetailRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)$/);
   return match?.[1] || null;
 }
 
@@ -322,7 +365,8 @@ const server = createServer(async (req, res) => {
         liveProviderEnabled: live.enabled,
         runtimeProvider: live.label,
         model: live.model,
-        dataStore: "local JSON ledger"
+        dataStore: "local JSON ledger",
+        workflow: "Evidence Relay v2"
       });
     }
 
@@ -337,10 +381,34 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { cases: await store.listCases() });
     }
 
+    if (req.method === "GET" && path === "/api/relay") {
+      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v2" });
+    }
+
     if (req.method === "GET" && path.startsWith("/api/fields/")) {
       const fieldId = decodeURIComponent(path.slice("/api/fields/".length));
       const field = await store.getField(fieldId);
       return field ? sendJson(res, 200, { field }) : sendJson(res, 404, { error: "Field not found." });
+    }
+
+    const taskRoute = parseTaskRoute(path);
+    if (req.method === "POST" && taskRoute) {
+      const body = await readJson(req);
+      const record = await store.recordTaskEvidence(taskRoute.caseId, taskRoute.taskId, body.note);
+      return sendJson(res, 200, { case: record, extensionCase: extensionCaseFromRecord(record) });
+    }
+
+    const assignCaseId = parseAssignRoute(path);
+    if (req.method === "POST" && assignCaseId) {
+      const body = await readJson(req);
+      const record = await store.assignCase(assignCaseId, body);
+      return sendJson(res, 200, { case: record, extensionCase: extensionCaseFromRecord(record) });
+    }
+
+    const detailCaseId = parseCaseDetailRoute(path);
+    if (req.method === "GET" && detailCaseId) {
+      const record = await store.getCase(detailCaseId);
+      return record ? sendJson(res, 200, { case: record, extensionCase: extensionCaseFromRecord(record) }) : sendJson(res, 404, { error: "Case not found." });
     }
 
     const caseId = parseCaseId(path);
@@ -366,7 +434,7 @@ const server = createServer(async (req, res) => {
         assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
       }
       const record = await store.createCase({ caseData, gate, assessment });
-      return sendJson(res, 200, { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), mode });
+      return sendJson(res, 200, { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, mode });
     }
 
     return serveStatic(req, res);
