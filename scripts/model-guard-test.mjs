@@ -28,6 +28,33 @@ assert.throws(
   /requested product/
 );
 
+assert.throws(
+  () => enforceEvidenceOnlyAssessment({ ...safeAssessment, farmerMessage: "Use Urea for this field." }, "test", { requestedProduct: "Urea" }),
+  /requested product/
+);
+
+assert.throws(
+  () => enforceEvidenceOnlyAssessment({ ...safeAssessment, farmerMessage: "Recommend a pesticide for this field." }, "test", { requestedProduct: "Unspecified" }),
+  /evidence-only contract/
+);
+
+assert.throws(
+  () => enforceEvidenceOnlyAssessment({ ...safeAssessment, farmerMessage: "Spray the field after rain." }, "test", { requestedProduct: "DAP" }),
+  /evidence-only contract/
+);
+
+for (const farmerMessage of [
+  "Recommend Urea for this field.",
+  "Neem oil is recommended.",
+  "Use NPK 19:19:19.",
+  "Consider a treatment after rain."
+]) {
+  assert.throws(
+    () => enforceEvidenceOnlyAssessment({ ...safeAssessment, farmerMessage }, "test", { requestedProduct: "DAP" }),
+    /evidence-only contract/
+  );
+}
+
 const safeDraft = enforceEvidenceIntakeDraft({
   crop: "Chilli",
   cropStage: "Flowering",
@@ -41,6 +68,10 @@ assert.deepEqual(safeDraft.evidenceGaps, ["soil health card", "previous outcome"
 assert.throws(
   () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Apply 15 ml to this field." }, "test", caseData),
   /evidence-only contract/
+);
+assert.throws(
+  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Use Urea for this field." }, "test", { requestedProduct: "Urea" }),
+  /requested product/
 );
 
 console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes from both briefs and intake drafts.");

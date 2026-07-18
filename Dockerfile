@@ -5,6 +5,8 @@ COPY package.json ./
 COPY . ./
 
 ENV PORT=8080
+ENV MITTIGUARD_STORE_PATH=/var/lib/mittiguard/store.json
+RUN mkdir -p /var/lib/mittiguard
 EXPOSE 8080
 
 CMD ["node", "--env-file-if-exists=.env", "server.mjs"]

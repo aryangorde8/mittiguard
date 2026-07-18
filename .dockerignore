@@ -2,6 +2,7 @@
 .env
 node_modules
 data/store.json
+data/store.json.*.tmp
 OPENAI_API_KEY has no text after =
 OPENAI_API_KEY is empty
 presentation.md

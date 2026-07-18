@@ -1,14 +1,16 @@
 import { createServer } from "node:http";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runEvaluationReplay } from "./lib/evaluation-replay.mjs";
 import { evaluateGate } from "./lib/policy.mjs";
 import { store } from "./lib/store.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(root, "public");
 const port = Number(process.env.PORT || 3000);
+const deploymentMode = process.env.MITTIGUARD_MODE === "operations" ? "operations" : "jury-demo";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -26,6 +28,24 @@ function send(res, status, payload, headers = {}) {
 
 function sendJson(res, status, payload) {
   send(res, status, JSON.stringify(payload), { "Content-Type": "application/json; charset=utf-8" });
+}
+
+function hasOperatorAccess(req) {
+  if (deploymentMode === "jury-demo") return true;
+  const expected = String(process.env.MITTIGUARD_OPERATOR_KEY || "");
+  const supplied = String(req.headers["x-mittiguard-operator-key"] || "");
+  if (!expected || !supplied) return false;
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
+}
+
+function requireOperator(req, res) {
+  if (hasOperatorAccess(req)) return true;
+  sendJson(res, 403, {
+    error: "Operations mode requires a valid x-mittiguard-operator-key for write requests."
+  });
+  return false;
 }
 
 async function readJson(req) {
@@ -79,7 +99,11 @@ function sanitizeAssessment(assessment = {}, source) {
 }
 
 const DOSAGE_PATTERN = /\b\d+(?:\.\d+)?\s?(?:ml|millilit(?:er|re)s?|g|grams?|kg|kilograms?|l|lit(?:er|re)s?)\b/i;
-const ACTION_ADVICE_PATTERN = /\b(?:you|farmer|grower)\s+(?:should|must|need to|can)\s+(?:apply|spray|mix|use|treat|drench|dose)\b|\b(?:apply|spray|mix|drench)\s+(?:\d|an?\s)/i;
+// A model may ask for or summarize evidence, but it must never tell someone how
+// to treat a field. The evidence-only response schema has no legitimate use for
+// a treatment or recommendation verb, so reject it regardless of whether the
+// product happens to be the one the dealer typed into this request.
+const ACTION_ADVICE_PATTERN = /\b(?:apply|spray|mix|treat|drench|dose|fertilise|fertilize|irrigate|recommend(?:ed|ing)?|suggest(?:ed|ing)?|prescrib(?:e|ed|ing)|use|try|consider)\b/i;
 const GENERIC_PRODUCT_TERMS = new Set(["a", "an", "and", "chemical", "context", "fertiliser", "fertilizer", "input", "intentionally", "model", "named", "pesticide", "product", "requested", "the", "this", "withheld"]);
 
 function assessmentText(assessment) {
@@ -96,7 +120,10 @@ function requestedProductTerms(caseData = {}) {
   return String(caseData.requestedProduct || "")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 5 && !GENERIC_PRODUCT_TERMS.has(term));
+    // Short product names such as Urea, DAP, and NPK are meaningful inputs.
+    // Three characters is the minimum that avoids matching common articles
+    // while still preventing a model from echoing those product requests.
+    .filter((term) => term.length >= 3 && !GENERIC_PRODUCT_TERMS.has(term));
 }
 
 function repeatsRequestedProduct(text, caseData = {}) {
@@ -106,12 +133,12 @@ function repeatsRequestedProduct(text, caseData = {}) {
 
 export function enforceEvidenceOnlyAssessment(assessment, source, caseData = {}) {
   const text = assessmentText(assessment);
-  if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
-    throw new Error("Model response violated MittiGuard's evidence-only contract.");
-  }
-
   if (repeatsRequestedProduct(text, caseData)) {
     throw new Error("Model response repeated a requested product.");
+  }
+
+  if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
+    throw new Error("Model response violated MittiGuard's evidence-only contract.");
   }
 
   return sanitizeAssessment(assessment, source);
@@ -122,11 +149,11 @@ const ALLOWED_EVIDENCE_GAPS = new Set(["field identity", "crop stage", "field im
 
 export function enforceEvidenceIntakeDraft(draft, source, caseData = {}) {
   const text = JSON.stringify(draft || {});
-  if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
-    throw new Error("Model intake draft violated MittiGuard's evidence-only contract.");
-  }
   if (repeatsRequestedProduct(text, caseData)) {
     throw new Error("Model intake draft repeated a requested product.");
+  }
+  if (DOSAGE_PATTERN.test(text) || ACTION_ADVICE_PATTERN.test(text)) {
+    throw new Error("Model intake draft violated MittiGuard's evidence-only contract.");
   }
   const cropStage = ALLOWED_CROP_STAGES.has(draft?.cropStage) ? draft.cropStage : null;
   const evidenceGaps = Array.isArray(draft?.evidenceGaps)
@@ -314,7 +341,7 @@ async function getNovaIntakeDraft(caseData) {
   return enforceEvidenceIntakeDraft(parseModelJson(text), "Amazon Nova Pro", caseData);
 }
 
-async function getLiveIntakeDraft(caseData) {
+export async function getLiveIntakeDraft(caseData) {
   return configuredProvider() === "nova" ? getNovaIntakeDraft(caseData) : getGptIntakeDraft(caseData);
 }
 
@@ -486,18 +513,23 @@ function extensionCaseFromRecord(record) {
     createdAt: record.createdAt,
     requiredEvidence: record.requiredEvidence,
     summary: record.reasons[0] || "Evidence package requires qualified review.",
-    relay: record.relay
+    relay: record.relay,
+    reviewAttestation: record.reviewAttestation || null,
+    saleAuthorization: "NOT_RELEASED"
   };
 }
 
-export function buildInvoiceGateReceipt({ record, gate, invoiceId }) {
+export function buildInvoiceGateReceipt({ record, gate, invoiceId, auditProof = null }) {
   const resolvedInvoiceId = String(invoiceId || record.externalInvoiceId || `LOCAL-${record.id}`).slice(0, 120);
   const receiptPayload = {
     invoiceId: resolvedInvoiceId,
     caseId: record.id,
     saleState: gate.saleState,
     policyVersion: gate.policyVersion,
-    issuedAt: record.createdAt
+    issuedAt: record.createdAt,
+    auditLedgerId: auditProof?.ledgerId || null,
+    auditHeadHash: auditProof?.headHash || null,
+    auditCaseLastSequence: auditProof?.caseLastSequence || null
   };
   const decisionDigest = createHash("sha256").update(JSON.stringify(receiptPayload)).digest("hex").slice(0, 16).toUpperCase();
   return {
@@ -511,7 +543,15 @@ export function buildInvoiceGateReceipt({ record, gate, invoiceId }) {
     evidenceCaseId: record.id,
     handoffCode: record.relay?.handoffCode || record.id,
     requiredEvidence: gate.requiredEvidence,
-    issuedAt: record.createdAt
+    issuedAt: record.createdAt,
+    auditProof: auditProof ? {
+      verified: auditProof.valid,
+      sealed: auditProof.sealed,
+      ledgerId: auditProof.ledgerId,
+      algorithm: auditProof.algorithm,
+      caseLastSequence: auditProof.caseLastSequence,
+      headHash: auditProof.headHash
+    } : null
   };
 }
 
@@ -533,7 +573,8 @@ async function openEvidenceRelay(caseData) {
     assessment.fallbackNote = "Live evidence summary was unavailable; the deterministic safety gate still ran.";
   }
   const record = await store.createCase({ caseData, gate, assessment });
-  return { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, mode };
+  const auditProof = await store.getLedgerVerification(record.id);
+  return { gate, assessment, case: record, extensionCase: extensionCaseFromRecord(record), relay: record.relay, auditProof, mode };
 }
 
 function parseCaseId(pathname) {
@@ -556,24 +597,56 @@ function parseOutcomeRoute(pathname) {
   return match?.[1] || null;
 }
 
+function parseReviewAttestationRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/review-attestation(?:\/(preview))?$/);
+  return match ? { caseId: match[1], preview: match[2] === "preview" } : null;
+}
+
 function parseCaseDetailRoute(pathname) {
   const match = pathname.match(/^\/api\/cases\/(C-\d+)$/);
+  return match?.[1] || null;
+}
+
+function parseAuditProofRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/audit-proof$/);
   return match?.[1] || null;
 }
 
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, `http://${req.headers.host}`).pathname;
   try {
+    // The public hackathon experience is intentionally an open synthetic jury
+    // demo. A non-demo deployment must put every state-changing endpoint
+    // behind a server-held operator key instead of trusting the browser role.
+    if (req.method === "POST" && !requireOperator(req, res)) return;
+
     if (req.method === "GET" && path === "/api/health") {
       const live = providerConfiguration();
+      const auditLedger = await store.getLedgerVerification();
       return sendJson(res, 200, {
         ok: true,
         liveProviderEnabled: live.enabled,
         runtimeProvider: live.label,
         model: live.model,
         dataStore: "local JSON ledger",
-        workflow: "Evidence Relay v3"
+        workflow: "Evidence Relay v4.2",
+        deploymentMode,
+        writeAccess: deploymentMode === "jury-demo" ? "open synthetic jury demo" : "operator key required",
+        auditLedger: {
+          verified: auditLedger.valid,
+          sealed: auditLedger.sealed,
+          algorithm: auditLedger.algorithm,
+          entryCount: auditLedger.entryCount
+        }
       });
+    }
+
+    if (req.method === "GET" && path === "/api/ledger/verify") {
+      return sendJson(res, 200, { auditProof: await store.getLedgerVerification() });
+    }
+
+    if (req.method === "GET" && path === "/api/evaluation/replay") {
+      return sendJson(res, 200, await runEvaluationReplay());
     }
 
     if (req.method === "GET" && path === "/api/weather") {
@@ -613,13 +686,44 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path === "/api/relay") {
-      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v3" });
+      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v4.2" });
     }
 
     if (req.method === "GET" && path.startsWith("/api/fields/")) {
       const fieldId = decodeURIComponent(path.slice("/api/fields/".length));
       const field = await store.getField(fieldId);
       return field ? sendJson(res, 200, { field }) : sendJson(res, 404, { error: "Field not found." });
+    }
+
+    const auditProofCaseId = parseAuditProofRoute(path);
+    if (req.method === "GET" && auditProofCaseId) {
+      const record = await store.getCase(auditProofCaseId);
+      return record
+        ? sendJson(res, 200, { caseId: record.id, auditProof: await store.getLedgerVerification(record.id) })
+        : sendJson(res, 404, { error: "Case not found." });
+    }
+
+    const reviewAttestationRoute = parseReviewAttestationRoute(path);
+    if (reviewAttestationRoute && req.method === "GET") {
+      if (reviewAttestationRoute.preview) {
+        const preview = await store.getReviewAttestationPreview(reviewAttestationRoute.caseId);
+        return preview ? sendJson(res, 200, { preview }) : sendJson(res, 404, { error: "Case not found." });
+      }
+      const verification = await store.getReviewAttestationVerification(reviewAttestationRoute.caseId);
+      return verification ? sendJson(res, 200, { verification, saleAuthorization: "NOT_RELEASED" }) : sendJson(res, 404, { error: "Case not found." });
+    }
+
+    if (reviewAttestationRoute && req.method === "POST" && !reviewAttestationRoute.preview) {
+      const body = await readJson(req);
+      const record = await store.attestReview(reviewAttestationRoute.caseId, body);
+      const verification = await store.getReviewAttestationVerification(record.id);
+      return sendJson(res, 200, {
+        case: record,
+        extensionCase: extensionCaseFromRecord(record),
+        attestation: record.reviewAttestation,
+        verification,
+        saleAuthorization: "NOT_RELEASED"
+      });
     }
 
     const taskRoute = parseTaskRoute(path);
@@ -658,6 +762,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/api/assess") {
       const caseData = await readJson(req);
+      // Only the POS endpoint may bind a record to an external invoice. This
+      // prevents a browser caller from manufacturing a POS-bound attestation.
+      delete caseData.externalInvoiceId;
+      delete caseData.intakeChannel;
       return sendJson(res, 200, await openEvidenceRelay(caseData));
     }
 
@@ -673,13 +781,14 @@ const server = createServer(async (req, res) => {
       const result = await openEvidenceRelay(caseData);
       return sendJson(res, 200, {
         ...result,
-        receipt: buildInvoiceGateReceipt({ record: result.case, gate: result.gate, invoiceId })
+        receipt: buildInvoiceGateReceipt({ record: result.case, gate: result.gate, invoiceId, auditProof: result.auditProof })
       });
     }
 
     return serveStatic(req, res);
   } catch (error) {
-    return sendJson(res, 500, { error: error.message || "Unexpected server error" });
+    const status = Number.isInteger(error.statusCode) ? error.statusCode : 500;
+    return sendJson(res, status, { error: error.message || "Unexpected server error" });
   }
 });
 

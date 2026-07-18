@@ -1,4 +1,4 @@
-# MittiGuard Relay demo — 2 minutes 45 seconds
+# MittiGuard Relay demo — 3 minutes
 
 Use the bundled demo case. Do not claim a real diagnosis, yield improvement, regulatory approval, or live messaging integration.
 
@@ -18,9 +18,9 @@ Say: “The voice transcript is browser capture with a typed fallback. Nova rece
 
 ## 0:48–1:17 — The intervention
 
-Click **Open Evidence Relay**. Pause on the **POS Gate** receipt stating “sale not released,” then hold on the invoice state changing to **PAUSED** and the dark **Decision Room** evidence map.
+Click **Open Evidence Relay**. Pause on the new **Counter / POS response** receipt stating **NOT RELEASED**, its decision digest, and its audit anchor. Then hold on the invoice state changing to **PAUSED** and the dark **Decision Room** evidence map.
 
-Say: “The map shows the signals separately: story, image, soil, weather, and field memory. The deterministic policy found yellowing without current soil evidence and an automatic Field Memory match to an unresolved prior outcome. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
+Say: “The map shows the signals separately: story, image, soil, weather, and field memory. The proof strip makes the control path explicit: dealer input is not authority; server-side Field Memory finds the unresolved prior outcome; the POS receives NOT RELEASED. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
 
 ## 1:17–1:45 — The memorable handoff
 
@@ -30,22 +30,31 @@ Say: “This is the difference between a warning and an operations system. Mitti
 
 Click **Copy WhatsApp-ready request** and show the handoff code, task list, and audit trace.
 
-## 1:45–2:10 — Evidence can move; the sale cannot
+## 1:45–2:20 — Evidence can move; the sale cannot
 
-Click **Record evidence** for the field task. The case moves to **Extension review**. Then click **Acknowledge extension review**.
+Click **Record evidence** for every requested task. The case moves to
+**Extension review**, but the invoice stays on hold. Enter the clearly labelled
+synthetic demo reviewer identity, click **Assign extension reviewer**, then
+click **Record human review attestation**.
 
-Say: “Evidence changed the workflow stage and owner. It did not clear the hold. There is no approved-sale state anywhere in this product.”
+Say: “The reviewer is not approving a chemical. MittiGuard binds the exact
+evidence digest and audit head they saw, then seals a `NOT RELEASED`
+attestation. If evidence changes or the ledger changes, the server rejects a
+stale signature. There is no approved-sale state anywhere in this product.”
 
-Record **Not improved / unresolved** in the **Outcome loop** and show the new immutable audit event. Say: “This is how MittiGuard learns from the field without pretending the model diagnosed anything. The reviewer’s neutral observation becomes future Evidence Debt; this invoice remains on hold.”
+Record **Not improved / unresolved** in the **Outcome loop** and show the new
+linked audit event. Say: “This is how MittiGuard learns from the field without
+pretending the model diagnosed anything. The reviewer’s neutral observation
+becomes future Evidence Debt; this invoice remains on hold.”
 
-## 2:10–2:30 — Memory prevents the next repeat mistake
+## 2:20–2:40 — Memory prevents the next repeat mistake
 
 Open **Field memory**. Point to the relay evidence event and the failed prior input.
 
 Say: “If this farmer returns, the dealer does not start from a blank conversation. The field ledger makes the unresolved outcome visible before another sale.”
 
-## 2:30–2:45 — Proof and close
+## 2:40–3:00 — Proof and close
 
-Open **Safety bench**. Say: “Nine deterministic policy fixtures, a 24-case adversarial Evidence Debt benchmark, a POS Gate contract test, relay persistence, and model-output guards support one narrow claim: ambiguity never becomes automated input authorization.”
+Open **Safety bench** and click **Run safety replay**. Say: “The running app replays 45 deterministic checks: nine policy fixtures, a 24-case adversarial Evidence Debt benchmark, and 12 gate-to-review integrity checks. The POS contract is tested separately. They support one narrow claim: ambiguity never becomes automated input authorization.”
 
 End: “Farm-input decisions compound across livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security. It helps dealers stop selling blind—and recover the evidence a human needs to act responsibly.”

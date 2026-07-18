@@ -13,7 +13,8 @@ const child = spawn(process.execPath, ["server.mjs"], {
     PORT: String(port),
     MITTIGUARD_STORE_PATH: join(directory, "ledger.json"),
     AWS_BEARER_TOKEN_BEDROCK: "",
-    OPENAI_API_KEY: ""
+    OPENAI_API_KEY: "",
+    MITTIGUARD_AUDIT_SECRET: "mittiguard-pos-endpoint-test-secret"
   },
   stdio: ["ignore", "ignore", "ignore"]
 });
@@ -59,13 +60,79 @@ try {
   assert.equal(result.receipt.invoiceId, "POS-INV-E2E-01");
   assert.equal(result.receipt.saleAuthorization, "NOT_RELEASED");
   assert.equal(result.gate.saleState, "ON_HOLD");
+  assert.equal(result.auditProof.valid, true);
+  assert.equal(result.auditProof.sealed, true);
+  assert.equal(result.receipt.auditProof.verified, true);
+  assert.equal(result.receipt.auditProof.sealed, true);
+  const initialAuditResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/audit-proof`);
+  const initialAudit = await initialAuditResponse.json();
+  assert.equal(initialAuditResponse.status, 200);
+  assert.equal(initialAudit.auditProof.valid, true);
+  assert.equal(initialAudit.auditProof.headHash, result.receipt.auditProof.headHash);
 
-  const reviewResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/evidence-received`, {
+  const initialPreviewResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/review-attestation/preview`);
+  const initialPreview = await initialPreviewResponse.json();
+  assert.equal(initialPreviewResponse.status, 200);
+  assert.equal(initialPreview.preview.eligible, false);
+  assert.equal(initialPreview.preview.saleAuthorization, "NOT_RELEASED");
+
+  let relayCase = result.case;
+  for (const task of result.case.relay.tasks) {
+    const taskResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/tasks/${task.id}/evidence-received`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: `Synthetic evidence received for ${task.id}.` })
+    });
+    const taskResult = await taskResponse.json();
+    assert.equal(taskResponse.status, 200);
+    relayCase = taskResult.case;
+  }
+  assert.ok(relayCase.relay.tasks.every((task) => task.status === "EVIDENCE_RECEIVED"));
+
+  const assignResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/assign`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ note: "Evidence packet received for the outcome-loop test." })
+    body: JSON.stringify({ role: "EXTENSION_REVIEW", name: "Dr. Arjun Mehta" })
   });
-  assert.equal(reviewResponse.status, 200);
+  const assigned = await assignResponse.json();
+  assert.equal(assignResponse.status, 200);
+  assert.deepEqual(assigned.case.relay.owner, { role: "EXTENSION_REVIEW", name: "Dr. Arjun Mehta" });
+
+  const previewResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/review-attestation/preview`);
+  const previewBody = await previewResponse.json();
+  assert.equal(previewResponse.status, 200);
+  assert.equal(previewBody.preview.eligible, true);
+  assert.equal(previewBody.preview.invoiceId, "POS-INV-E2E-01");
+  assert.equal(previewBody.preview.saleAuthorization, "NOT_RELEASED");
+  assert.equal(previewBody.preview.auditProof.sealed, true);
+
+  const attestationResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/review-attestation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reviewerName: "Dr. Arjun Mehta",
+      disposition: "MANUAL_POS_DECISION_REQUIRED",
+      note: "Synthetic evidence packet reviewed; MittiGuard did not release the POS invoice.",
+      confirmed: true,
+      expectedEvidenceDigest: previewBody.preview.evidenceDigest,
+      expectedAuditHeadHash: previewBody.preview.auditAnchor.headHash
+    })
+  });
+  const attestationBody = await attestationResponse.json();
+  assert.equal(attestationResponse.status, 200);
+  assert.equal(attestationBody.saleAuthorization, "NOT_RELEASED");
+  assert.equal(attestationBody.attestation.saleAuthorization, "NOT_RELEASED");
+  assert.equal(attestationBody.case.saleState, "ON_HOLD");
+  assert.equal(attestationBody.verification.valid, true);
+  assert.equal(attestationBody.verification.auditBound, true);
+  assert.equal(attestationBody.verification.auditProof.sealed, true);
+
+  const verificationResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/review-attestation`);
+  const verification = await verificationResponse.json();
+  assert.equal(verificationResponse.status, 200);
+  assert.equal(verification.saleAuthorization, "NOT_RELEASED");
+  assert.equal(verification.verification.valid, true);
+
   const outcomeResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/field-outcome`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -81,7 +148,14 @@ try {
   assert.equal(cases.cases[0].externalInvoiceId, "POS-INV-E2E-01");
   assert.equal(cases.cases[0].intakeChannel, "POS_GATE_API");
   assert.equal(cases.cases[0].fieldOutcome.state, "NOT_IMPROVED");
-  console.log("PASS POS Gate end-to-end HTTP contract persists a no-release invoice decision and outcome-loop observation in an isolated ledger.");
+  assert.equal(cases.cases[0].reviewAttestation.saleAuthorization, "NOT_RELEASED");
+  assert.equal(cases.cases[0].saleState, "ON_HOLD");
+  const auditResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/audit-proof`);
+  const audit = await auditResponse.json();
+  assert.equal(auditResponse.status, 200);
+  assert.equal(audit.auditProof.valid, true);
+  assert.ok(audit.auditProof.caseLastSequence > result.receipt.auditProof.caseLastSequence);
+  console.log("PASS POS Gate end-to-end binds a named human attestation to evidence and invoice before an outcome, while never releasing the sale.");
 } finally {
   child.kill("SIGTERM");
   await rm(directory, { recursive: true, force: true });
