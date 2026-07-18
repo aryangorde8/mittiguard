@@ -11,6 +11,7 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(root, "public");
 const port = Number(process.env.PORT || 3000);
 const deploymentMode = process.env.MITTIGUARD_MODE === "operations" ? "operations" : "jury-demo";
+const POS_GATE_ENDPOINT = "/api/pos/gate-invoice";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -392,8 +393,8 @@ export async function getGptAssessment(caseData, gate) {
     text: `Field case and fixed gate result:\n${caseSummary(caseData, gate)}`
   }];
 
-  // The image is optional because the bundled demo uses simulated evidence. In a
-  // live case, a real field photo is sent with the textual evidence package.
+  // An image is optional at intake. The clean demo starts without one, while
+  // Field Capture requires the task-specific photo or document image later.
   if (typeof caseData.photoDataUrl === "string" && caseData.photoDataUrl.startsWith("data:image/")) {
     content.push({ type: "input_image", image_url: caseData.photoDataUrl });
   }
@@ -644,6 +645,12 @@ function fieldCaptureTokenFromRequest(req) {
 }
 
 function publicFieldCaptureUrl(req, token) {
+  const configuredBase = configuredPublicBaseUrl();
+  if (configuredBase) {
+    // A fixed public origin prevents a caller-controlled Host header from
+    // deciding where a one-time capability is sent on a deployed instance.
+    return new URL(`field-capture.html#${encodeURIComponent(token)}`, `${configuredBase}/`).toString();
+  }
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
   const protocol = forwardedProto === "https" ? "https" : "http";
   const host = String(req.headers.host || "localhost");
@@ -651,6 +658,18 @@ function publicFieldCaptureUrl(req, token) {
   // the web server, so it avoids ordinary access/proxy log exposure. The page
   // then supplies it in a same-origin Authorization header/body.
   return `${protocol}://${host}/field-capture.html#${encodeURIComponent(token)}`;
+}
+
+function configuredPublicBaseUrl() {
+  const raw = String(process.env.MITTIGUARD_PUBLIC_BASE_URL || "").trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) return null;
+    return `${url.origin}${url.pathname.replace(/\/$/, "")}`;
+  } catch {
+    return null;
+  }
 }
 
 function parseAssignRoute(pathname) {
@@ -699,9 +718,10 @@ const server = createServer(async (req, res) => {
         runtimeProvider: live.label,
         model: live.model,
         dataStore: "local JSON ledger",
-        workflow: "Evidence Relay v4.2",
+        workflow: "Evidence Relay v4.3",
         deploymentMode,
         writeAccess: deploymentMode === "jury-demo" ? "open synthetic jury demo" : "operator key required",
+        fieldCapturePublicBaseUrlConfigured: Boolean(configuredPublicBaseUrl()),
         auditLedger: {
           verified: auditLedger.valid,
           sealed: auditLedger.sealed,
@@ -743,10 +763,17 @@ const server = createServer(async (req, res) => {
         imageMetadata: fieldCaptureImageMetadata(body.imageDataUrl)
       });
       const task = record.relay.tasks.find((item) => item.fieldCapture?.submittedAt === record.updatedAt);
+      const auditProof = await store.getLedgerVerification(record.id);
       return sendJson(res, 200, {
         ok: true,
         caseReference: record.relay.handoffCode || record.id,
         task: task ? { id: task.id, title: task.title, status: task.status } : null,
+        receipt: task?.fieldCapture ? {
+          submittedAt: task.fieldCapture.submittedAt,
+          image: task.fieldCapture.image || null,
+          auditHead: auditProof.headHash || null,
+          auditVerified: Boolean(auditProof.valid)
+        } : null,
         saleAuthorization: "NOT_RELEASED",
         saleState: record.saleState,
         remainingEvidenceTasks: record.relay.tasks.filter((item) => item.status !== "EVIDENCE_RECEIVED").length,
@@ -784,7 +811,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path === "/api/relay") {
-      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v4.2" });
+      return sendJson(res, 200, { cases: await store.listCases(), workflow: "Evidence Relay v4.3" });
     }
 
     if (req.method === "GET" && path.startsWith("/api/fields/")) {
@@ -882,7 +909,7 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, await openEvidenceRelay(caseData));
     }
 
-    if (req.method === "POST" && path === "/api/pos/authorize-sale") {
+    if (req.method === "POST" && path === POS_GATE_ENDPOINT) {
       const body = await readJson(req);
       const invoiceId = String(body.invoiceId || "").trim();
       const caseData = body.case && typeof body.case === "object" ? body.case : body;

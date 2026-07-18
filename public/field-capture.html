@@ -47,13 +47,13 @@
           <label for="observation">What did you observe?</label>
           <textarea id="observation" rows="4" maxlength="500" placeholder="Example: Whole-plant photo captured after rain; yellowing is visible on lower leaves."></textarea>
 
-          <div class="form-heading upload-heading"><span>02</span><div><h2>Optional evidence image</h2><p>Use the camera or choose one field photo or requested-document image. It is compressed on this device before upload.</p></div></div>
+          <div class="form-heading upload-heading"><span>02</span><div><h2 id="capture-evidence-heading">Required evidence image</h2><p id="capture-evidence-help">Use the camera or choose the image requested by this task. It is compressed on this device before upload.</p></div></div>
           <label class="camera-upload" for="field-image">
             <input id="field-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" capture="environment" />
             <span class="camera-icon">⌁</span>
-            <span><b>Take or choose an evidence image</b><small id="image-status">No image selected</small></span>
+            <span><b id="image-action-label">Take or choose the required evidence image</b><small id="image-status">No image selected</small></span>
           </label>
-          <p class="privacy-note">MittiGuard retains only image format, size, and a SHA-256 digest for this task—never the raw image bytes.</p>
+          <p class="privacy-note" id="capture-requirement">This task requires an image. MittiGuard retains only image format, size, and a SHA-256 digest—never the raw image bytes.</p>
 
           <button class="submit-button" type="submit" id="capture-submit"><span>Submit evidence for review</span><strong>→</strong></button>
           <p class="form-note">Submitting this evidence leaves the invoice <b>NOT RELEASED</b>.</p>

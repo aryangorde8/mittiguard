@@ -6,7 +6,7 @@ It is a hackathon prototype, not an agronomic diagnostic or recommendation syste
 
 ## For judges — the 60-second proof
 
-The deployed Devpost link requires no login or credentials. In the app, choose **Start clean jury demo**, confirm the reset, turn off **Prior input did not resolve the issue**, and click **Open Evidence Relay**.
+Use the public demo URL in the Devpost submission, or run the project locally. In the app, click **Run bypass proof**. It uses the real server path: reset the synthetic ledger, clear the dealer's **Prior input did not resolve the issue** claim, and submit the counter case to the POS Gate.
 
 You should see one narrow claim proved in the interface:
 
@@ -46,6 +46,7 @@ docker run --rm -p 8080:8080 \
   -e PORT=8080 \
   -e MITTIGUARD_STORE_PATH=/var/lib/mittiguard/store.json \
   -e MITTIGUARD_MODE=jury-demo \
+  -e MITTIGUARD_PUBLIC_BASE_URL=http://localhost:8080 \
   -e MODEL_PROVIDER=nova \
   -e AWS_REGION=us-east-1 \
   -e NOVA_MODEL_ID=amazon.nova-pro-v1:0 \
@@ -81,6 +82,12 @@ The nine fixtures deliberately test the policy decision, not disease-diagnosis a
 It also runs the transparent Evidence Debt benchmark: 24 synthetic adversarial records (12 repeat matches and 12 hard negatives). The current matcher is deliberately scoped to an exact field and crop plus at least two shared symptom signals. A passing synthetic fixture is not an agronomic validation claim.
 
 The running app's **Safety Bench** calls a read-only, server-side replay of 45 deterministic checks: nine policy fixtures, 24 Evidence Debt cases, and 12 gate-to-review/audit-integrity checks. The separately tested POS endpoint contract is covered by `npm test`. This is reproducible product-policy evidence, not a crop-diagnosis benchmark.
+
+For the one-command judge path (temporary ledger, health contract, clean reset, real POS gate, replay, and sealed audit verification), run:
+
+```bash
+npm run verify:judge
+```
 
 With a live key configured, run the one-call contract check:
 
@@ -129,8 +136,8 @@ Codex using GPT-5.6 accelerated the full-stack prototype: product architecture, 
 - The persistent ledger is a local JSON store for a self-contained demo, not a multi-user database. `MITTIGUARD_AUDIT_SECRET` seals new audit entries with HMAC-SHA256 but is not a substitute for production identity, access control, backups, or a compliance program.
 - The public instance defaults to `jury-demo` mode, which deliberately accepts synthetic write interactions so judges can run the story. `operations` mode requires a server-held operator key for every write, but a real deployment would still need user identity, role management, and a durable data service.
 - Weather comes from Open-Meteo and is presented as context, never as action advice.
-- A real photo uploaded in a live case is included in the optional Nova Pro evidence request. The default demo case uses a clearly labelled simulated attachment; a production build would add consent, retention, and local evidence-validation controls.
-- Voice intake uses browser speech recognition when available and stores only the reviewed transcript, never audio. The WhatsApp-ready handoff is copyable text, not a messaging integration.
+- A real photo uploaded in a synthetic case is included in the optional Nova Pro evidence request. The default demo deliberately starts with **no** field image; it creates a Field Capture task that requires an actual image receipt before completion. A production build would add consent, retention, and local evidence-validation controls.
+- Voice intake uses browser speech recognition when available and stores only the reviewed transcript, never audio. The handoff is copyable text, not a messaging integration.
 - Mobile Field Capture is a one-time, hash-and-receipt-only handoff. It stores a bounded neutral observation plus image format, size, and SHA-256 digest—not raw image bytes or a viewable evidence archive. A production rollout would add consent, authenticated reviewer access, retention/deletion controls, and durable evidence storage.
 - MittiGuard is not a disease classifier, pesticide recommender, or compliance certification system.
 

@@ -41,6 +41,8 @@ try {
   assert.match(issued.token, /^mgfc_[A-Za-z0-9_-]{32,}$/);
   assert.equal(issued.context.saleAuthorization, "NOT_RELEASED");
   assert.equal(issued.context.task.id, fieldTask.id);
+  assert.equal(issued.context.task.captureRequirement, "FIELD_PHOTO");
+  assert.equal(issued.context.task.imageRequired, true);
   const storedAfterIssue = await readFile(path, "utf8");
   assert.ok(storedAfterIssue.includes("tokenHash"));
   assert.ok(!storedAfterIssue.includes(issued.token));
@@ -57,6 +59,14 @@ try {
   await assert.rejects(
     () => store.recordFieldCaptureEvidence(issued.token, { observation: "Apply a treatment immediately." }),
     /neutral observations only/i
+  );
+  await assert.rejects(
+    () => store.recordTaskEvidence(created.id, fieldTask.id, "A desktop shortcut must not complete Field Capture."),
+    /time-bound Field Capture link/i
+  );
+  await assert.rejects(
+    () => store.recordFieldCaptureEvidence(issued.token, { observation: "Yellowing remains visible after rain." }),
+    /requires a field image/i
   );
 
   const submitted = await store.recordFieldCaptureEvidence(issued.token, {

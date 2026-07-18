@@ -15,6 +15,7 @@ const child = spawn(process.execPath, ["server.mjs"], {
     MITTIGUARD_STORE_PATH: join(directory, "ledger.json"),
     MITTIGUARD_MODE: "operations",
     MITTIGUARD_OPERATOR_KEY: operatorKey,
+    MITTIGUARD_PUBLIC_BASE_URL: "https://jury.example.test",
     AWS_BEARER_TOKEN_BEDROCK: "",
     OPENAI_API_KEY: "",
     MITTIGUARD_AUDIT_SECRET: "mittiguard-operator-boundary-audit-secret"
@@ -52,11 +53,12 @@ try {
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then((response) => response.json());
   assert.equal(health.deploymentMode, "operations");
   assert.equal(health.writeAccess, "operator key required");
+  assert.equal(health.fieldCapturePublicBaseUrlConfigured, true);
 
   assert.equal((await post("/api/demo/reset", { confirmation: "RESET_DEMO_LEDGER" })).status, 403);
-  assert.equal((await post("/api/pos/authorize-sale", { invoiceId: "OPS-01", case: {} })).status, 403);
+  assert.equal((await post("/api/pos/gate-invoice", { invoiceId: "OPS-01", case: {} })).status, 403);
 
-  const allowed = await post("/api/pos/authorize-sale", {
+  const allowed = await post("/api/pos/gate-invoice", {
     invoiceId: "OPS-01",
     case: {
       farmerName: "Operator Test Farmer",
@@ -87,7 +89,7 @@ try {
   const issuedLink = await issuedLinkResponse.json();
   assert.equal(issuedLinkResponse.status, 201);
   assert.equal(issuedLink.saleAuthorization, "NOT_RELEASED");
-  assert.match(issuedLink.fieldCaptureUrl, /\/field-capture\.html#mgfc_/);
+  assert.match(issuedLink.fieldCaptureUrl, /^https:\/\/jury\.example\.test\/field-capture\.html#mgfc_/);
   const capability = decodeURIComponent(issuedLink.fieldCaptureUrl.split("#")[1]);
 
   const mobileContextResponse = await fetch(`http://127.0.0.1:${port}/api/field-capture/context`, {

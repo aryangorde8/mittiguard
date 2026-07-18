@@ -28,6 +28,17 @@ const input = {
 
 const reviewerName = "Dr. Rhea Kamat";
 
+async function completeTask(store, caseId, task) {
+  if (task.ownerRole !== "FIELD_CAPTURE") {
+    return store.recordTaskEvidence(caseId, task.id, "Synthetic evidence received for named reviewer verification.");
+  }
+  const issued = await store.issueFieldCaptureLink(caseId, task.id, { ttlMinutes: 5 });
+  return store.recordFieldCaptureEvidence(issued.token, {
+    observation: "Current requested evidence captured for named reviewer verification.",
+    imageMetadata: { mediaType: "image/jpeg", bytes: 1234, sha256: "E".repeat(64) }
+  });
+}
+
 function attestationInput(preview, overrides = {}) {
   return {
     reviewerName,
@@ -60,7 +71,7 @@ try {
 
   let updated = created;
   for (const task of created.relay.tasks) {
-    updated = await store.recordTaskEvidence(created.id, task.id, "Synthetic evidence received for named reviewer verification.");
+    updated = await completeTask(store, created.id, task);
   }
   assert.equal(updated.relay.phase, "EXTENSION_REVIEW");
 

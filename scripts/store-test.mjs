@@ -22,6 +22,17 @@ const testInput = {
   previousInputFailed: true
 };
 
+async function completeTask(store, caseId, task) {
+  if (task.ownerRole !== "FIELD_CAPTURE") {
+    return store.recordTaskEvidence(caseId, task.id, "Current evidence attached for reviewer verification.");
+  }
+  const issued = await store.issueFieldCaptureLink(caseId, task.id, { ttlMinutes: 5 });
+  return store.recordFieldCaptureEvidence(issued.token, {
+    observation: "Current requested evidence was captured for reviewer verification.",
+    imageMetadata: { mediaType: "image/jpeg", bytes: 1234, sha256: "C".repeat(64) }
+  });
+}
+
 try {
   await writeFile(path, JSON.stringify({ version: 1, cases: [], fields: [] }));
   const testStore = new MittiStore(path);
@@ -39,7 +50,7 @@ try {
   const field = await testStore.getField("TEST-01");
   let updated = record;
   for (const task of record.relay.tasks) {
-    updated = await testStore.recordTaskEvidence(record.id, task.id, "Current evidence attached for reviewer verification.");
+    updated = await completeTask(testStore, record.id, task);
   }
   const assigned = await testStore.assignCase(record.id, { role: "EXTENSION_REVIEW", name: "Maya Nair" });
   const preview = await testStore.getReviewAttestationPreview(record.id);

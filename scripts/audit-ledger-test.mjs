@@ -24,6 +24,17 @@ const input = {
   previousInputFailed: true
 };
 
+async function completeTask(store, caseId, task) {
+  if (task.ownerRole !== "FIELD_CAPTURE") {
+    return store.recordTaskEvidence(caseId, task.id, "Synthetic evidence received.");
+  }
+  const issued = await store.issueFieldCaptureLink(caseId, task.id, { ttlMinutes: 5 });
+  return store.recordFieldCaptureEvidence(issued.token, {
+    observation: "Current requested evidence captured for audit verification.",
+    imageMetadata: { mediaType: "image/jpeg", bytes: 1234, sha256: "D".repeat(64) }
+  });
+}
+
 try {
   const store = new MittiStore(path);
   const gate = evaluateGate(input, new Date("2026-07-17T12:00:00Z"));
@@ -43,7 +54,7 @@ try {
 
   let updated = created;
   for (const task of created.relay.tasks) {
-    updated = await store.recordTaskEvidence(created.id, task.id, "Synthetic evidence received.");
+    updated = await completeTask(store, created.id, task);
   }
   const assigned = await store.assignCase(created.id, { role: "EXTENSION_REVIEW", name: "Dr. Neha Iyer" });
   const preview = await store.getReviewAttestationPreview(created.id);

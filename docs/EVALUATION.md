@@ -42,7 +42,7 @@ reviewer can distinguish these conditions.
 
 ## POS Gate contract check
 
-`scripts/pos-contract-test.mjs` asserts that the POS receipt has a stable contract, invoice ID, decision digest, handoff code, and `saleAuthorization: NOT_RELEASED`. `scripts/pos-endpoint-test.mjs` starts an isolated local server and verifies the same behavior over HTTP, including persistence of the invoice ID and `POS_GATE_API` channel. The counter UI uses this API contract at `/api/pos/authorize-sale`; see [POS_GATE.md](POS_GATE.md).
+`scripts/pos-contract-test.mjs` asserts that the POS receipt has a stable contract, invoice ID, decision digest, handoff code, and `saleAuthorization: NOT_RELEASED`. `scripts/pos-endpoint-test.mjs` starts an isolated local server and verifies the same behavior over HTTP, including persistence of the invoice ID and `POS_GATE_API` channel. The counter UI uses this API contract at `/api/pos/gate-invoice`; see [POS_GATE.md](POS_GATE.md).
 
 ## Persistence check
 

@@ -49,7 +49,7 @@ reviewer is unnamed or differs from the assigned extension-review owner, the
 ledger is not valid and HMAC-sealed, or the caller supplies any sale-state or
 authorization field.
 
-## Immutable review record
+## Tamper-evident review record
 
 The stored attestation includes a binding digest and the pre-attestation audit
 anchor. Its matching audit event is HMAC-linked to the preceding ledger hash.

@@ -23,7 +23,7 @@ docker run -d --name mittiguard --restart unless-stopped \
 Do not mount over `/app/data`; the container needs its bundled demo fixture.
 If an earlier deployment used `/opt/mittiguard/data/store.json`, make a backup
 and **copy** that file into `/opt/mittiguard/runtime/store.json` before the
-first V4.2 start. Never commit either file.
+first V4.3 start. Never commit either file.
 
 ## Required server environment
 
@@ -32,6 +32,7 @@ PORT=8080
 MITTIGUARD_STORE_PATH=/var/lib/mittiguard/store.json
 MITTIGUARD_AUDIT_SECRET=<a stable 64-hex-character secret>
 MITTIGUARD_MODE=jury-demo
+MITTIGUARD_PUBLIC_BASE_URL=https://mittiguard.example.com
 MODEL_PROVIDER=nova
 AWS_REGION=us-east-1
 NOVA_MODEL_ID=amazon.nova-pro-v1:0
@@ -39,7 +40,7 @@ AWS_BEARER_TOKEN_BEDROCK=<Bedrock bearer token>
 ```
 
 Generate the audit secret once with `openssl rand -hex 32`. Set it before the
-first V4.2 relay event and keep it stable: changing it invalidates verification
+first V4.3 relay event and keep it stable: changing it invalidates verification
 of earlier HMAC ledger entries. Store the environment file with mode `600`.
 The Human Review Attestation deliberately refuses to run without this seal.
 If the existing demo ledger predates the secret or the current sealed-audit
@@ -50,6 +51,12 @@ The public hackathon instance should stay in `jury-demo` mode and must use
 only the bundled synthetic data. For any real operation, set
 `MITTIGUARD_MODE=operations`, configure `MITTIGUARD_OPERATOR_KEY`, and replace
 the local JSON store with an authenticated multi-user data service.
+
+`MITTIGUARD_PUBLIC_BASE_URL` should be the exact public HTTPS origin (with no
+query string or fragment). The server uses it when it creates one-time Field
+Capture links, rather than trusting an incoming `Host` header. Verify that
+`/api/health` reports `fieldCapturePublicBaseUrlConfigured: true` before
+recording the mobile-capture portion of the demo.
 
 ## Reverse proxy
 

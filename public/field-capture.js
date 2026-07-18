@@ -9,6 +9,7 @@ const form = $("#capture-form");
 const submit = $("#capture-submit");
 const imageInput = $("#field-image");
 const imageStatus = $("#image-status");
+let captureContext = null;
 
 function show(element) {
   [loading, content, success, error].forEach((item) => item.classList.add("hidden"));
@@ -27,11 +28,34 @@ function formatExpiry(value) {
 }
 
 function renderContext(context) {
+  captureContext = context;
   $("#task-title").textContent = context.task.title;
   $("#task-expiry").textContent = formatExpiry(context.expiresAt);
   $("#task-field").textContent = context.field;
   $("#task-crop").textContent = `${context.crop} · ${context.cropStage}`;
   $("#task-case").textContent = context.caseReference;
+  const requirement = context.task.captureRequirement;
+  const imageRequired = Boolean(context.task.imageRequired);
+  const details = requirement === "SOIL_CARD_IMAGE"
+    ? {
+      heading: "Required Soil Health Card image",
+      help: "Photograph or choose the current Soil Health Card / test requested by this task.",
+      action: "Take or choose the required Soil Health Card image"
+    }
+    : {
+      heading: "Required field image",
+      help: "Photograph or choose the requested whole-plant or close-up field image.",
+      action: "Take or choose the required field image"
+    };
+  imageInput.required = imageRequired;
+  $("#capture-evidence-heading").textContent = imageRequired ? details.heading : "Optional evidence image";
+  $("#capture-evidence-help").textContent = imageRequired
+    ? details.help
+    : "Use the camera or choose one field photo or requested-document image. It is compressed on this device before upload.";
+  $("#image-action-label").textContent = imageRequired ? details.action : "Take or choose an evidence image";
+  $("#capture-requirement").textContent = imageRequired
+    ? "This task requires an image. MittiGuard retains only image format, size, and a SHA-256 digest—never the raw image bytes."
+    : "MittiGuard retains only image format, size, and a SHA-256 digest for any attached image—never the raw image bytes.";
   show(content);
 }
 
@@ -108,6 +132,11 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const observation = $("#observation").value.trim();
   const file = imageInput.files?.[0];
+  const imageRequired = Boolean(captureContext?.task?.imageRequired);
+  if (imageRequired && !file) {
+    imageStatus.textContent = "This task requires the requested image before it can be submitted.";
+    return;
+  }
   if (!observation && !file) {
     imageStatus.textContent = "Add a neutral observation or choose one image.";
     return;
@@ -127,7 +156,11 @@ form.addEventListener("submit", async (event) => {
     });
     const body = await responseJson(response);
     if (!response.ok) throw new Error(body.error || "Evidence could not be submitted.");
-    $("#success-copy").textContent = `${body.task?.title || "The assigned task"} was received. ${body.notice || "The invoice remains NOT RELEASED."}`;
+    const receipt = body.receipt;
+    const imageReceipt = receipt?.image
+      ? ` Receipt: ${receipt.image.mediaType} · SHA-256 ${receipt.image.sha256.slice(0, 10)}…${receipt.image.sha256.slice(-4)}.`
+      : "";
+    $("#success-copy").textContent = `${body.task?.title || "The assigned task"} was received.${imageReceipt} ${body.notice || "The invoice remains NOT RELEASED."} Close this page and refresh the desktop relay.`;
     show(success);
   } catch (requestError) {
     errorMessage(requestError.message);

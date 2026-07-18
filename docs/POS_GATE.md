@@ -5,7 +5,7 @@ MittiGuard exposes a small counter-system boundary. A billing/POS system submits
 ## Request
 
 ```http
-POST /api/pos/authorize-sale
+POST /api/pos/gate-invoice
 Content-Type: application/json
 ```
 

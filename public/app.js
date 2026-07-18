@@ -13,6 +13,7 @@ let relayCases = [];
 let selectedRelayId = null;
 let speechRecognition = null;
 let intakeDraft = null;
+let draftCopiedToFields = false;
 let latestReceipt = null;
 let reviewAttestationPreview = null;
 let reviewAttestationPreviewCaseId = null;
@@ -81,8 +82,8 @@ function resetDemo() {
   latestReceipt = null;
   demoMode = true;
   photoInput.value = "";
-  photoLabel.textContent = "Demo field evidence (simulated)";
-  $("#form-footnote").textContent = "Demo mode uses simulated evidence. The policy never recommends a pesticide, fertiliser, dose, or application timing.";
+  photoLabel.textContent = "No field image attached — Field Capture will request one";
+  $("#form-footnote").textContent = "The clean demo intentionally starts without a photo. The relay will require actual field-capture evidence; the policy never recommends a pesticide, fertiliser, dose, or application timing.";
   $("#voice-status").textContent = "Browser transcription is optional and not stored as audio.";
   clearIntakeDraft();
   resultPanel.classList.add("hidden");
@@ -102,7 +103,7 @@ function startLiveCase() {
   photoDataUrl = null;
   photoInput.value = "";
   photoLabel.textContent = "Attach a whole-plant or close-up image";
-  $("#form-footnote").textContent = "Live cases require an actual field image. Voice transcription remains text-only; no audio is persisted.";
+  $("#form-footnote").textContent = "This public deployment is a synthetic jury demo. A blank case requires actual image evidence before Field Capture can complete a photo task.";
   $("#voice-status").textContent = "Choose the farmer language, then capture or type the story.";
   clearIntakeDraft();
   resultPanel.classList.add("hidden");
@@ -114,10 +115,10 @@ function startLiveCase() {
   scrollToTop();
 }
 
-async function resetDemoLedger() {
-  const confirmed = window.confirm("Load the clean jury demo? This permanently clears only the local MittiGuard demo ledger on this computer.");
-  if (!confirmed) return;
-  const buttons = [$("#reset-demo-ledger"), $("#start-jury-demo")].filter(Boolean);
+async function resetDemoLedger({ confirm = true } = {}) {
+  const confirmed = !confirm || window.confirm("Load the clean jury demo? This permanently clears only the local MittiGuard demo ledger on this computer.");
+  if (!confirmed) return false;
+  const buttons = [$("#reset-demo-ledger"), $("#start-jury-demo"), $("#run-bypass-proof")].filter(Boolean);
   buttons.forEach((button) => { button.disabled = true; button.textContent = "Resetting demo…"; });
   try {
     const response = await fetch("/api/demo/reset", {
@@ -132,23 +133,27 @@ async function resetDemoLedger() {
     currentCase = null;
     resetDemo();
     await Promise.all([loadRelay(), loadFieldMemory()]);
-    $("#form-footnote").textContent = "Clean jury demo loaded. The field has one prior outcome and one stale soil record—open the relay to begin the story.";
+    $("#form-footnote").textContent = "Clean jury demo loaded: no field image, one stale soil record, and one unresolved prior outcome. Run the bypass proof or open the relay yourself.";
     switchSection("case-desk");
+    return true;
   } catch (error) {
     window.alert(error.message);
+    return false;
   } finally {
     buttons.forEach((button) => {
       button.disabled = false;
-      button.innerHTML = button.id === "start-jury-demo"
-        ? "<span>Start clean jury demo</span><strong>→</strong>"
-        : "↺ Load clean jury demo";
+      button.innerHTML = button.id === "run-bypass-proof"
+        ? "<span>Run bypass proof</span><strong>→</strong>"
+        : button.id === "start-jury-demo"
+          ? "Load clean demo case"
+          : "↺ Load clean jury demo";
     });
   }
 }
 
 function dataFromForm() {
   const data = Object.fromEntries(new FormData(form).entries());
-  data.photoProvided = demoMode || Boolean(photoDataUrl);
+  data.photoProvided = Boolean(photoDataUrl);
   data.photoDataUrl = photoDataUrl;
   data.previousInputFailed = form.elements.previousInputFailed.checked;
   data.weather = window.mittiWeather || null;
@@ -157,6 +162,9 @@ function dataFromForm() {
 
 function clearIntakeDraft() {
   intakeDraft = null;
+  draftCopiedToFields = false;
+  const confirmation = $("#draft-source-confirmed");
+  if (confirmation) confirmation.checked = false;
   $("#intake-draft").classList.add("hidden");
   $("#intake-draft-source").textContent = "Waiting for reviewed field evidence";
   $("#draft-symptom").textContent = "—";
@@ -204,12 +212,17 @@ async function extractIntakeDraft() {
 
 function applyIntakeDraft() {
   if (!intakeDraft) return;
+  if (!$("#draft-source-confirmed").checked) {
+    $("#voice-status").textContent = "Confirm that you compared the draft with the source narrative before copying editable fields.";
+    return;
+  }
   if (intakeDraft.crop) form.elements.crop.value = intakeDraft.crop;
   if (intakeDraft.cropStage && [...form.elements.cropStage.options].some((option) => option.value === intakeDraft.cropStage)) {
     form.elements.cropStage.value = intakeDraft.cropStage;
   }
   if (intakeDraft.symptom) form.elements.symptom.value = intakeDraft.symptom;
-  $("#voice-status").textContent = "Editable draft copied into the form. Confirm the original evidence before opening the relay.";
+  draftCopiedToFields = true;
+  $("#voice-status").textContent = "Editable draft copied for human review. The server gate—not the draft—will decide the sale state.";
 }
 
 function newInvoiceId() {
@@ -385,14 +398,17 @@ function renderResult(result) {
   setTimeout(() => resultPanel.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
 }
 
-async function assess(event) {
-  event.preventDefault();
-  const button = $(".primary-button", form);
+async function submitEvidenceRelay(button = $(".primary-button", form)) {
+  const originalLabel = button.innerHTML;
+  if (draftCopiedToFields && !$("#draft-source-confirmed").checked) {
+    $("#voice-status").textContent = "Confirm the copied evidence draft before opening the relay.";
+    return;
+  }
   button.disabled = true;
   button.innerHTML = "<span>Building evidence relay…</span><strong>◌</strong>";
   setWorkflowStage("gate");
   try {
-    const response = await fetch("/api/pos/authorize-sale", {
+    const response = await fetch("/api/pos/gate-invoice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoiceId: newInvoiceId(), case: dataFromForm() })
@@ -405,8 +421,24 @@ async function assess(event) {
     resultPanel.classList.remove("hidden");
   } finally {
     button.disabled = false;
-    button.innerHTML = "<span>Open Evidence Relay</span><strong>→</strong>";
+    button.innerHTML = originalLabel;
   }
+}
+
+async function assess(event) {
+  event.preventDefault();
+  await submitEvidenceRelay();
+}
+
+async function runBypassProof() {
+  const button = $("#run-bypass-proof");
+  const reset = await resetDemoLedger({ confirm: false });
+  if (!reset) return;
+  // This deliberately contradicts the seeded field outcome. The server must
+  // still find Evidence Debt and return NOT_RELEASED from the real POS gate.
+  form.elements.previousInputFailed.checked = false;
+  $("#form-footnote").textContent = "Bypass proof running: the dealer says the prior input did not fail. The server will check Field Memory independently.";
+  await submitEvidenceRelay(button);
 }
 
 function relayPhaseLabel(phase) {
@@ -417,7 +449,7 @@ function openTasks(record) {
   return (record.relay?.tasks || []).filter((task) => task.status !== "EVIDENCE_RECEIVED");
 }
 
-function isNamedSyntheticReviewer(value = "") {
+function isNamedDemoReviewer(value = "") {
   const normalized = String(value).trim().toLowerCase();
   return normalized.length >= 3 && !["extension desk", "extension review", "reviewer", "unassigned", "unknown", "synthetic reviewer"].includes(normalized);
 }
@@ -479,7 +511,7 @@ function renderReviewAttestation(record) {
   const attestation = record.reviewAttestation;
   const reviewReady = relay.phase === "EXTENSION_REVIEW";
   const tasksComplete = openTasks(record).length === 0;
-  const assignedReviewer = relay.owner?.role === "EXTENSION_REVIEW" && isNamedSyntheticReviewer(relay.owner?.name)
+  const assignedReviewer = relay.owner?.role === "EXTENSION_REVIEW" && isNamedDemoReviewer(relay.owner?.name)
     ? relay.owner.name
     : "";
   const existingInput = reviewerInput.value.trim();
@@ -487,14 +519,14 @@ function renderReviewAttestation(record) {
     reviewerInput.value = attestation.reviewerName;
     reviewAttestationReviewerCaseId = record.id;
   } else if (reviewAttestationReviewerCaseId !== record.id) {
-    reviewerInput.value = assignedReviewer || "Riya Shah (synthetic jury demo)";
+    reviewerInput.value = assignedReviewer || "Riya Shah (demo reviewer)";
     reviewAttestationReviewerCaseId = record.id;
   } else if (!existingInput) {
-    reviewerInput.value = assignedReviewer || "Riya Shah (synthetic jury demo)";
+    reviewerInput.value = assignedReviewer || "Riya Shah (demo reviewer)";
   }
 
   const requestedReviewer = reviewerInput.value.trim();
-  const requesterIsNamed = isNamedSyntheticReviewer(requestedReviewer);
+  const requesterIsNamed = isNamedDemoReviewer(requestedReviewer);
   const ownerMatchesRequested = Boolean(assignedReviewer && assignedReviewer === requestedReviewer);
   const preview = currentReviewAttestationPreview(record);
   const previewEligible = Boolean(preview?.eligible && preview?.evidenceDigest && preview?.auditAnchor?.headHash);
@@ -519,10 +551,10 @@ function renderReviewAttestation(record) {
     : frozen
       ? "Attestation sealed — not released"
       : !requesterIsNamed
-        ? "Enter a named synthetic reviewer"
+        ? "Enter a named demo reviewer"
         : ownerMatchesRequested
-          ? "Synthetic reviewer assigned"
-          : "Assign synthetic reviewer";
+          ? "Demo reviewer assigned"
+          : "Assign demo reviewer";
 
   previewButton.disabled = !reviewReady || !tasksComplete || !ownerMatchesRequested || frozen;
   previewButton.textContent = frozen ? "Attestation sealed" : "Load sealed review preview";
@@ -532,7 +564,7 @@ function renderReviewAttestation(record) {
   if (attestation) {
     status.textContent = "ATTESTED · NOT RELEASED";
     status.className = "attested";
-    help.textContent = `A named synthetic reviewer bound the packet at ${dateLabel(attestation.reviewedAt, true)}. The invoice remains NOT RELEASED.`;
+    help.textContent = `A named demo reviewer bound the packet at ${dateLabel(attestation.reviewedAt, true)}. The invoice remains NOT RELEASED.`;
     const verified = reviewAttestationVerificationCaseId === record.id ? reviewAttestationVerification : null;
     const verificationLabel = verified?.valid ? "server verification valid" : "server enforces verification before any outcome";
     previewNode.className = "attestation-preview attested";
@@ -547,7 +579,7 @@ function renderReviewAttestation(record) {
   } else if (!ownerMatchesRequested) {
     status.textContent = "ASSIGN REVIEWER";
     status.className = "waiting";
-    help.textContent = "Assign the named synthetic jury-demo reviewer before requesting a sealed packet preview.";
+    help.textContent = "Assign the named demo reviewer before requesting a sealed packet preview.";
   } else if (previewEligible) {
     status.textContent = "READY TO ATTEST";
     status.className = "ready";
@@ -638,7 +670,7 @@ function renderRelayTask(record, task) {
   } else if (isMobileCaptureTask) {
     actions = `<div class="mobile-capture-actions">${link
       ? `<button class="task-action" data-copy-field-capture-link="${escapeHtml(task.id)}">Copy secure mobile link</button><a class="task-action mobile-capture-open" href="${escapeHtml(link.fieldCaptureUrl)}" target="_blank" rel="noopener">Open capture screen</a><small>One-time link · expires ${escapeHtml(dateLabel(link.expiresAt, true))}</small>`
-      : `<button class="task-action mobile-capture-link" data-field-capture-link="${escapeHtml(task.id)}">Generate secure mobile link</button>`}<button class="task-action" data-task-id="${escapeHtml(task.id)}">Record evidence in desk</button></div>`;
+      : `<button class="task-action mobile-capture-link" data-field-capture-link="${escapeHtml(task.id)}">Generate secure mobile link</button>`}<small>Required image evidence can only be submitted through this one-time Field Capture link.</small></div>`;
   } else {
     actions = `<button class="task-action" data-task-id="${escapeHtml(task.id)}">Record evidence</button>`;
   }
@@ -652,6 +684,8 @@ function renderRelayDetail() {
     $("#relay-case-title").textContent = "No relay cases yet";
     $("#relay-case-meta").textContent = "Open an evidence case from Case intake to create the first handoff.";
     $("#relay-phase").textContent = "WAITING";
+    $("#relay-invoice-state").textContent = "NOT RELEASED";
+    $("#relay-invoice-copy").textContent = "Every relay stage preserves the POS no-release boundary.";
     $("#handoff-code").textContent = "—";
     $("#relay-sla").textContent = "—";
     $("#handoff-message").textContent = "No handoff selected.";
@@ -674,6 +708,8 @@ function renderRelayDetail() {
   $("#relay-phase").textContent = relayPhaseLabel(relay.phase);
   $("#handoff-code").textContent = relay.handoffCode || record.id;
   $("#relay-sla").textContent = remaining.length ? `SLA due ${dateLabel(relay.slaDueAt, true)} · ${remaining.length} task${remaining.length === 1 ? "" : "s"} open` : "Evidence packet received · sale still on hold";
+  $("#relay-invoice-state").textContent = "NOT RELEASED";
+  $("#relay-invoice-copy").textContent = `${record.externalInvoiceId || "This counter invoice"} remains outside MittiGuard release authority at every relay stage.`;
   $("#handoff-message").textContent = relay.handoffMessage || "Handoff message unavailable.";
   $("#copy-handoff").disabled = false;
   const nextStep = remaining.length
@@ -815,8 +851,8 @@ async function acknowledgeExtensionReview() {
   const record = relayCases.find((item) => item.id === selectedRelayId);
   if (!record) return;
   const reviewerName = $("#attestation-reviewer").value.trim();
-  if (!isNamedSyntheticReviewer(reviewerName)) {
-    reviewAttestationPreviewError = "Enter a named synthetic jury-demo reviewer before assigning extension-review ownership.";
+  if (!isNamedDemoReviewer(reviewerName)) {
+    reviewAttestationPreviewError = "Enter a named demo reviewer before assigning extension-review ownership.";
     reviewAttestationPreviewErrorCaseId = record.id;
     renderReviewAttestation(record);
     return;
@@ -930,7 +966,7 @@ async function copyHandoff() {
   } catch {
     window.prompt("Copy this field request:", record.relay.handoffMessage);
   }
-  setTimeout(() => { $("#copy-handoff").textContent = "Copy WhatsApp-ready request"; }, 1700);
+  setTimeout(() => { $("#copy-handoff").textContent = "Copy handoff message"; }, 1700);
 }
 
 async function copyPosReceipt() {
@@ -982,7 +1018,7 @@ async function runSafetyReplay() {
     $("#safety-replay-result").className = "warning";
   } finally {
     button.disabled = false;
-    button.textContent = "Run safety replay";
+    button.textContent = "Run 45-check safety replay";
   }
 }
 
@@ -1028,6 +1064,7 @@ async function loadHealth() {
     const health = await response.json();
     const path = health.liveProviderEnabled ? `${health.runtimeProvider} evidence path active` : "Deterministic demo path active";
     $("#model-status").textContent = health.deploymentMode === "jury-demo" ? `${path} · jury demo` : path;
+    $("#new-live-case").textContent = health.deploymentMode === "jury-demo" ? "+ Blank synthetic case" : "+ New case";
     const ledger = health.auditLedger || {};
     $("#ledger-status").textContent = ledger.valid && ledger.sealed
       ? "HMAC-SEALED AUDIT LEDGER"
@@ -1036,6 +1073,7 @@ async function loadHealth() {
         : "AUDIT LEDGER NEEDS VERIFICATION";
   } catch {
     $("#model-status").textContent = "Offline demo path";
+    $("#new-live-case").textContent = "+ Blank synthetic case";
     $("#ledger-status").textContent = "AUDIT LEDGER UNAVAILABLE";
   }
 }
@@ -1074,7 +1112,7 @@ photoInput.addEventListener("change", async () => {
   const file = photoInput.files[0];
   if (!file) {
     photoDataUrl = null;
-    photoLabel.textContent = demoMode ? "Demo field evidence (simulated)" : "Attach a whole-plant or close-up image";
+    photoLabel.textContent = demoMode ? "No field image attached — Field Capture will request one" : "Attach a whole-plant or close-up image";
     return;
   }
   if (file.size > 900_000) {
@@ -1095,6 +1133,7 @@ photoInput.addEventListener("change", async () => {
 
 form.addEventListener("submit", assess);
 $("#start-jury-demo").addEventListener("click", resetDemoLedger);
+$("#run-bypass-proof").addEventListener("click", runBypassProof);
 $("#reset-demo-ledger").addEventListener("click", resetDemoLedger);
 $("#new-live-case").addEventListener("click", startLiveCase);
 $("#refresh-relay").addEventListener("click", () => loadRelay(selectedRelayId));

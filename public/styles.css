@@ -123,3 +123,19 @@ button { cursor: pointer; }
 .mobile-capture-actions { display: grid; justify-items: end; gap: 5px; }.mobile-capture-actions .task-action { text-align: center; }.mobile-capture-actions .mobile-capture-link { color: #7f522c; background: #fff8ee; border-color: #e6c9ad; }.mobile-capture-open { display: inline-block; text-decoration: none; }.mobile-capture-actions small, .mobile-capture-receipt { color: #748271; font-size: 8px; line-height: 1.35; }.mobile-capture-receipt { margin-top: 5px; color: #587858; }.mobile-capture-receipt::before { content: "↗ "; color: #5f9b62; font-weight: 850; }
 
 @media (max-width: 760px) { .jury-context { text-align: left; }.relay-toolbar { justify-items: start; }.bypass-proof-intro { align-items: flex-start; flex-direction: column; gap: 4px; }.mobile-capture-actions { grid-column: 2; justify-items: start; }.mobile-capture-actions .task-action { width: auto; grid-column: auto; } }
+
+/* The invoice hold is a durable product boundary, not a completed green step. */
+.step.control-step { background: #fff8f2; }
+.step.control-step span, .step.control-step.done span, .step.control-step.active span { color: #fff; background: #bf5529; }
+.step.control-step b, .step.control-step.done b, .step.control-step.active b { color: #91421f; }
+.step.control-step small { color: #a7674b; }
+
+.intake-draft-confirm { display: flex; align-items: flex-start; gap: 7px; margin-top: 10px; color: #4a6e62; font-size: 9px; line-height: 1.4; }
+.intake-draft-confirm input { width: 14px; height: 14px; margin: 0; accent-color: #467c72; }
+
+.relay-invoice-boundary { margin: -17px 0 17px; padding: 12px 15px; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; color: #93421f; background: #fff5ed; border: 1px solid #edc8b3; border-radius: 9px; }
+.relay-invoice-boundary span { color: #a85a36; font-size: 8px; letter-spacing: .9px; font-weight: 850; }
+.relay-invoice-boundary b { padding: 5px 7px; color: #a13f18; background: #fff; border: 1px solid #e8bba1; border-radius: 5px; font-size: 9px; letter-spacing: .7px; }
+.relay-invoice-boundary p { margin: 0; color: #805845; font-size: 10px; line-height: 1.4; }
+
+@media (max-width: 760px) { .relay-invoice-boundary { grid-template-columns: 1fr; gap: 5px; margin-top: -9px; }.relay-invoice-boundary b { justify-self: start; } }

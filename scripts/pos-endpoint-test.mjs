@@ -35,7 +35,7 @@ async function waitForServer() {
 
 try {
   await waitForServer();
-  const response = await fetch(`http://127.0.0.1:${port}/api/pos/authorize-sale`, {
+  const response = await fetch(`http://127.0.0.1:${port}/api/pos/gate-invoice`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -78,6 +78,38 @@ try {
 
   let relayCase = result.case;
   for (const task of result.case.relay.tasks) {
+    if (task.ownerRole === "FIELD_CAPTURE") {
+      const bypassResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/tasks/${task.id}/evidence-received`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: "A browser cannot mark a required image task complete." })
+      });
+      assert.equal(bypassResponse.status, 422);
+      const linkResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/tasks/${task.id}/field-capture-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ttlMinutes: 5 })
+      });
+      const link = await linkResponse.json();
+      assert.equal(linkResponse.status, 201);
+      const capability = decodeURIComponent(link.fieldCaptureUrl.split("#")[1]);
+      const taskResponse = await fetch(`http://127.0.0.1:${port}/api/field-capture/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${capability}`
+        },
+        body: JSON.stringify({
+          observation: `Synthetic requested image received for ${task.id}.`,
+          imageDataUrl: "data:image/jpeg;base64,/9j/2Q=="
+        })
+      });
+      const taskResult = await taskResponse.json();
+      assert.equal(taskResponse.status, 200);
+      assert.equal(taskResult.receipt.image.mediaType, "image/jpeg");
+      relayCase = (await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}`).then((item) => item.json())).case;
+      continue;
+    }
     const taskResponse = await fetch(`http://127.0.0.1:${port}/api/cases/${result.case.id}/tasks/${task.id}/evidence-received`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
