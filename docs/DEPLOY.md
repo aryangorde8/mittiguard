@@ -189,3 +189,13 @@ Before sharing the URL, confirm the health response has
 a verified, sealed audit ledger. Then run `npm run smoke:model` and
 `npm run eval:intake:nova -- --json` on the server, reset the jury ledger once,
 and record the demo.
+
+If the credential lives only in `/etc/mittiguard.env`, run the checks without
+printing that file or its values:
+
+```bash
+sudo bash -c 'set -a; . /etc/mittiguard.env; set +a; cd /opt/mittiguard; npm run smoke:model; npm run eval:intake:nova -- --json'
+```
+
+Keep the unedited evaluation output only if it passes, label it as a synthetic
+intake-contract evaluation, and never present it as agronomic validation.
