@@ -219,6 +219,45 @@ function parseImageDataUrl(value) {
   return { format: match[1].toLowerCase().replace("jpg", "jpeg"), bytes: match[2] };
 }
 
+function hasExpectedImageMagic(raw, format) {
+  if (format === "png") {
+    return raw.length >= 8 && raw.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if (format === "jpeg") {
+    return raw.length >= 4 && raw[0] === 0xff && raw[1] === 0xd8 && raw[raw.length - 2] === 0xff && raw[raw.length - 1] === 0xd9;
+  }
+  if (format === "gif") {
+    return raw.length >= 6 && (raw.subarray(0, 6).equals(Buffer.from("GIF87a")) || raw.subarray(0, 6).equals(Buffer.from("GIF89a")));
+  }
+  return raw.length >= 12 && raw.subarray(0, 4).equals(Buffer.from("RIFF")) && raw.subarray(8, 12).equals(Buffer.from("WEBP"));
+}
+
+function fieldCaptureImageMetadata(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const image = parseImageDataUrl(value);
+  if (!image) {
+    const error = new Error("Attach a valid PNG, JPEG, GIF, or WebP image.");
+    error.statusCode = 422;
+    throw error;
+  }
+  const raw = Buffer.from(image.bytes, "base64");
+  if (!raw.length || raw.length > 1_000_000) {
+    const error = new Error("Field Capture images must be 1 MB or smaller after mobile compression.");
+    error.statusCode = 422;
+    throw error;
+  }
+  if (!hasExpectedImageMagic(raw, image.format)) {
+    const error = new Error("The uploaded bytes do not match the declared image format.");
+    error.statusCode = 422;
+    throw error;
+  }
+  return {
+    mediaType: `image/${image.format}`,
+    bytes: raw.length,
+    sha256: createHash("sha256").update(raw).digest("hex").toUpperCase()
+  };
+}
+
 function parseModelJson(text) {
   if (typeof text !== "string") throw new Error("Model did not return text.");
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -588,6 +627,32 @@ function parseTaskRoute(pathname) {
   return match ? { caseId: match[1], taskId: match[2] } : null;
 }
 
+function parseFieldCaptureLinkRoute(pathname) {
+  const match = pathname.match(/^\/api\/cases\/(C-\d+)\/tasks\/(T-[A-Za-z0-9-]+)\/field-capture-link$/);
+  return match ? { caseId: match[1], taskId: match[2] } : null;
+}
+
+function isFieldCaptureCapabilityEndpoint(req, pathname) {
+  return (req.method === "GET" && pathname === "/api/field-capture/context")
+    || (req.method === "POST" && pathname === "/api/field-capture/submit");
+}
+
+function fieldCaptureTokenFromRequest(req) {
+  const authorization = String(req.headers.authorization || "");
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function publicFieldCaptureUrl(req, token) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const protocol = forwardedProto === "https" ? "https" : "http";
+  const host = String(req.headers.host || "localhost");
+  // Put the capability in the URL fragment. Browsers do not send fragments to
+  // the web server, so it avoids ordinary access/proxy log exposure. The page
+  // then supplies it in a same-origin Authorization header/body.
+  return `${protocol}://${host}/field-capture.html#${encodeURIComponent(token)}`;
+}
+
 function parseAssignRoute(pathname) {
   const match = pathname.match(/^\/api\/cases\/(C-\d+)\/assign$/);
   return match?.[1] || null;
@@ -619,7 +684,11 @@ const server = createServer(async (req, res) => {
     // The public hackathon experience is intentionally an open synthetic jury
     // demo. A non-demo deployment must put every state-changing endpoint
     // behind a server-held operator key instead of trusting the browser role.
-    if (req.method === "POST" && !requireOperator(req, res)) return;
+    // A Field Capture capability is deliberately narrower than operator
+    // access: it can submit one pre-authorized evidence task, never issue or
+    // change a sale decision. This lets a mobile field worker act in
+    // operations mode without receiving an operator key.
+    if (req.method === "POST" && !isFieldCaptureCapabilityEndpoint(req, path) && !requireOperator(req, res)) return;
 
     if (req.method === "GET" && path === "/api/health") {
       const live = providerConfiguration();
@@ -656,6 +725,33 @@ const server = createServer(async (req, res) => {
       const lat = Number(url.searchParams.get("lat") || 16.3067);
       const lon = Number(url.searchParams.get("lon") || 80.4365);
       return sendJson(res, 200, await weatherSnapshot(lat, lon));
+    }
+
+    if (req.method === "GET" && path === "/api/field-capture/context") {
+      const context = await store.getFieldCaptureContext(fieldCaptureTokenFromRequest(req));
+      return context
+        ? sendJson(res, 200, { context })
+        : sendJson(res, 404, { error: "This Field Capture link is invalid, expired, or has already been used." });
+    }
+
+    if (req.method === "POST" && path === "/api/field-capture/submit") {
+      const body = await readJson(req);
+      const record = await store.recordFieldCaptureEvidence(fieldCaptureTokenFromRequest(req) || body.token, {
+        observation: body.observation,
+        // Never pass a data URL to the store. The API reduces it to compact
+        // metadata plus a SHA-256 digest before the durable write.
+        imageMetadata: fieldCaptureImageMetadata(body.imageDataUrl)
+      });
+      const task = record.relay.tasks.find((item) => item.fieldCapture?.submittedAt === record.updatedAt);
+      return sendJson(res, 200, {
+        ok: true,
+        caseReference: record.relay.handoffCode || record.id,
+        task: task ? { id: task.id, title: task.title, status: task.status } : null,
+        saleAuthorization: "NOT_RELEASED",
+        saleState: record.saleState,
+        remainingEvidenceTasks: record.relay.tasks.filter((item) => item.status !== "EVIDENCE_RECEIVED").length,
+        notice: "Evidence was received for review. The invoice remains NOT RELEASED."
+      });
     }
 
     if (req.method === "POST" && path === "/api/intake/extract") {
@@ -725,6 +821,21 @@ const server = createServer(async (req, res) => {
         attestation: record.reviewAttestation,
         verification,
         saleAuthorization: "NOT_RELEASED"
+      });
+    }
+
+    const fieldCaptureLinkRoute = parseFieldCaptureLinkRoute(path);
+    if (req.method === "POST" && fieldCaptureLinkRoute) {
+      const body = await readJson(req);
+      const issued = await store.issueFieldCaptureLink(fieldCaptureLinkRoute.caseId, fieldCaptureLinkRoute.taskId, {
+        ttlMinutes: body.ttlMinutes
+      });
+      return sendJson(res, 201, {
+        fieldCaptureUrl: publicFieldCaptureUrl(req, issued.token),
+        expiresAt: issued.context.expiresAt,
+        context: issued.context,
+        saleAuthorization: "NOT_RELEASED",
+        notice: "This single-task capability can submit evidence only. It cannot release an invoice."
       });
     }
 

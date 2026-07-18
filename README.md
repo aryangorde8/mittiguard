@@ -4,22 +4,25 @@
 
 It is a hackathon prototype, not an agronomic diagnostic or recommendation system. It never generates chemical products, doses, or application instructions.
 
+## For judges — the 60-second proof
+
+The deployed Devpost link requires no login or credentials. In the app, choose **Start clean jury demo**, confirm the reset, turn off **Prior input did not resolve the issue**, and click **Open Evidence Relay**.
+
+You should see one narrow claim proved in the interface:
+
+`dealer claims no prior failure → server finds Evidence Debt → POS returns NOT RELEASED → exact evidence work is assigned`
+
+Then open **Evidence Relay** to complete the non-authorizing review workflow, **Field memory** to see the future repeat-risk record, and **Safety bench** to run the 45-check server replay. A model, a task completion, and a human attestation all leave the invoice `NOT_RELEASED`.
+
 ## What it demonstrates
 
-1. A dealer captures the crop, symptom, field history, Soil Health Card age, optional browser voice-note transcript, and a live field photo. Nova can turn the reviewed narrative and image into an editable evidence draft; it cannot authorize a sale.
-2. A deterministic policy engine pauses a sale when evidence is incomplete or conflicts.
-3. Amazon Nova Pro can create a constrained, multimodal evidence brief and image-context note. It cannot alter the sale state.
-4. The Evidence Relay creates exact evidence tasks, assigns a role, sets a 24-hour SLA, produces a copyable field handoff, and writes an audit trail.
-5. The server-side Repeat-Risk Matcher turns unresolved, similar field history into **Evidence Debt**, even when the dealer does not report a failed prior input.
-6. The **Decision Room** makes the evidence path legible: voice/story, image, soil, weather, and field memory converge on a visibly separate deterministic sale gate.
-7. Recording each evidence task moves only the relay phase; even a completed evidence packet remains `ON_HOLD` until qualified human review.
-8. Included fixtures prove the safety policy for ambiguous, missing-evidence, automatic-repeat-risk, complete-evidence, instruction-injection, and relay-state cases.
-9. A server-side model-output guard rejects dosage, action-advice, and requested-product echoes before a model summary can be displayed.
-10. The POS-facing `POST /api/pos/authorize-sale` contract returns a no-release receipt, decision digest, evidence-case ID, and handoff code for a billing system.
-11. A named reviewer can attest the exact POS-bound evidence digest and audit head; it remains `NOT_RELEASED` and is never a sale approval.
-12. A qualified reviewer can record a neutral observed field outcome only after a valid attestation; it becomes future field memory, but never releases the current sale.
-13. Every relay event is linked into a server audit chain. With `MITTIGUARD_AUDIT_SECRET` configured, the chain is HMAC-SHA256 sealed, verified through a read-only endpoint, and anchored in the POS receipt.
-14. The Safety Bench can replay 45 deterministic checks in the running app: nine policy fixtures, 24 Evidence Debt adversarial cases, and 12 gate-to-review integrity checks.
+1. **POS Gate:** every counter route returns `NOT_RELEASED`; the deterministic policy has no approved-sale state.
+2. **Evidence Debt:** a server-side Field Memory match catches a repeat even if the dealer clears the prior-failure control in the browser.
+3. **Owned recovery work:** the relay creates exact evidence tasks, owner, SLA, and a short-lived mobile Field Capture link instead of a chemical recommendation.
+4. **Bound human review:** a named reviewer can attest only the exact evidence digest and HMAC-sealed audit head they saw. That record is still `NOT_RELEASED`.
+5. **Inspectable proof:** the Safety Bench replays 45 deterministic policy, Evidence Debt, and gate-to-review controls in the running app.
+
+Amazon Nova Pro can turn reviewed text and an optional image into a constrained evidence draft and evidence-only brief. It cannot change the sale state, recommend an input, or bypass any of the controls above.
 
 ## Run locally
 
@@ -87,30 +90,34 @@ npm run smoke:model
 
 It uses a synthetic ambiguous case and checks that Amazon Nova Pro returns the required structured evidence summary without a product name or dosage. It does not evaluate agronomic correctness.
 
-For a transparent, opt-in seven-record evaluation of the live Nova **intake-draft** path, run:
+For a transparent, opt-in **24-record predeclared evaluation** of the live Nova **intake-draft** path, run:
 
 ```bash
 npm run eval:intake:nova
 ```
 
-It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports evidence-extraction and safety-contract metrics only; see [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
+It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports extraction and safety-contract metrics only—not agronomic accuracy. For a machine-readable, date-neutral report, run `npm run eval:intake:nova -- --json`; see [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
 
 ## Architecture
 
 ```text
-Counter story + voice transcript + field evidence
+Counter request + reviewed field evidence
             |
-            +--> Nova Pro evidence brief --> explanation and image context only
-            |
-            +--> field-memory repeat-risk matcher --> Evidence Debt
-            |                                           |
-            +--> deterministic policy (`lib/policy.mjs`) --> invoice state
-            |                                                   |
-            |                                                   +--> POS Gate no-release receipt + audit anchor
-            |                                                   |
-            |                                                   +--> Evidence Relay tasks + owner + SLA + HMAC audit chain
-            |                                                                 |
-            |                                                                 +--> persistent case + field ledger (`MITTIGUARD_STORE_PATH`)
+            +--> deterministic policy + server-side Evidence Debt
+            |                 |
+            |                 +--> POS receipt: NOT_RELEASED
+            |                                |
+            |                                +--> owned evidence tasks + field handoff
+            |                                             |
+            |                                             +--> HMAC-bound human attestation: still NOT_RELEASED
+            |                                                          |
+            |                                                          +--> neutral field outcome
+            |                                                                       |
+            +--> Field Memory <-----------------------------------------------+
+                     |
+                     +--> next counter request: repeat-risk check
+
+Nova Pro: reviewed evidence draft / brief only; never a sale-state authority.
 ```
 
 ## Built with Codex and GPT-5.6
@@ -124,6 +131,7 @@ Codex using GPT-5.6 accelerated the full-stack prototype: product architecture, 
 - Weather comes from Open-Meteo and is presented as context, never as action advice.
 - A real photo uploaded in a live case is included in the optional Nova Pro evidence request. The default demo case uses a clearly labelled simulated attachment; a production build would add consent, retention, and local evidence-validation controls.
 - Voice intake uses browser speech recognition when available and stores only the reviewed transcript, never audio. The WhatsApp-ready handoff is copyable text, not a messaging integration.
+- Mobile Field Capture is a one-time, hash-and-receipt-only handoff. It stores a bounded neutral observation plus image format, size, and SHA-256 digest—not raw image bytes or a viewable evidence archive. A production rollout would add consent, authenticated reviewer access, retention/deletion controls, and durable evidence storage.
 - MittiGuard is not a disease classifier, pesticide recommender, or compliance certification system.
 
 ## Hackathon materials

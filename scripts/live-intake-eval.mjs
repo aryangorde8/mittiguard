@@ -2,8 +2,11 @@ import { readFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 
 const requireLive = process.argv.includes("--require-live");
+const jsonOutput = process.argv.includes("--json");
 const fixtureDocument = JSON.parse(await readFile(new URL("../fixtures/live-intake-fixtures.json", import.meta.url), "utf8"));
 const fixtures = Array.isArray(fixtureDocument.fixtures) ? fixtureDocument.fixtures : [];
+const MIN_FIXTURES = 20;
+const MAX_FIXTURES = 25;
 
 function normalize(value) {
   return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -17,6 +20,10 @@ function percent(numerator, denominator) {
   return denominator ? `${((numerator / denominator) * 100).toFixed(1)}%` : "n/a";
 }
 
+function metric(numerator, denominator) {
+  return { passed: numerator, total: denominator, rate: percent(numerator, denominator) };
+}
+
 function safeErrorMessage(error) {
   return String(error?.message || error || "Unknown error").replace(/\s+/g, " ").slice(0, 180);
 }
@@ -25,12 +32,66 @@ function isGuardRejection(error) {
   return /requested product|evidence-only contract|dosage|action advice/i.test(safeErrorMessage(error));
 }
 
+function validateFixtureDocument(document, suiteFixtures) {
+  const errors = [];
+  const expectedCount = Number(document?.expectedFixtureCount);
+  const ids = new Set();
+  const imageFixtures = document?.imageFixtures && typeof document.imageFixtures === "object" ? document.imageFixtures : {};
+
+  if (!Number.isInteger(expectedCount)) {
+    errors.push("expectedFixtureCount must be an integer.");
+  }
+  if (suiteFixtures.length < MIN_FIXTURES || suiteFixtures.length > MAX_FIXTURES) {
+    errors.push(`fixture count must be between ${MIN_FIXTURES} and ${MAX_FIXTURES}; found ${suiteFixtures.length}.`);
+  }
+  if (Number.isInteger(expectedCount) && expectedCount !== suiteFixtures.length) {
+    errors.push(`expectedFixtureCount is ${expectedCount}, but the suite contains ${suiteFixtures.length} fixtures.`);
+  }
+
+  for (const fixture of suiteFixtures) {
+    if (!fixture?.id || typeof fixture.id !== "string") {
+      errors.push("each fixture needs a string id.");
+      continue;
+    }
+    if (ids.has(fixture.id)) errors.push(`duplicate fixture id: ${fixture.id}.`);
+    ids.add(fixture.id);
+    if (!fixture.case || typeof fixture.case !== "object") errors.push(`${fixture.id} is missing a case object.`);
+    if (!fixture.expect || typeof fixture.expect !== "object") errors.push(`${fixture.id} is missing an expect object.`);
+    if (!Array.isArray(fixture.tags) || !fixture.tags.length) errors.push(`${fixture.id} needs at least one coverage tag.`);
+    if (fixture.case?.photoFixture && !imageFixtures[fixture.case.photoFixture]) {
+      errors.push(`${fixture.id} references unknown image fixture: ${fixture.case.photoFixture}.`);
+    }
+  }
+
+  const requiredCoverage = Array.isArray(document?.requiredCoverage) ? document.requiredCoverage : [];
+  for (const tag of requiredCoverage) {
+    if (!suiteFixtures.some((fixture) => Array.isArray(fixture.tags) && fixture.tags.includes(tag))) {
+      errors.push(`required coverage tag has no fixture: ${tag}.`);
+    }
+  }
+
+  return errors;
+}
+
+function caseDataFromFixture(fixture) {
+  const caseData = { ...(fixture.case || {}) };
+  if (caseData.photoFixture) {
+    caseData.photoDataUrl = fixtureDocument.imageFixtures?.[caseData.photoFixture] || "";
+    delete caseData.photoFixture;
+  }
+  caseData.photoProvided = Boolean(caseData.photoDataUrl);
+  return caseData;
+}
+
 function createMetrics() {
   return {
     successfulDrafts: 0,
     providerOrParseFailures: 0,
     protectedGuardRejections: 0,
+    expectedGuardRejectionPasses: 0,
+    unexpectedGuardRejections: 0,
     fullFixturePasses: 0,
+    contractFixturePasses: 0,
     cropAgreements: 0,
     cropExpected: 0,
     stageAgreements: 0,
@@ -56,7 +117,7 @@ function scoreDraft(fixture, draft, metrics) {
   const sourceCorrect = draft.source === "Amazon Nova Pro";
 
   let cropPass = true;
-  if (expected.crop) {
+  if (Object.hasOwn(expected, "crop")) {
     metrics.cropExpected += 1;
     cropPass = normalize(draft.crop) === normalize(expected.crop);
     if (cropPass) metrics.cropAgreements += 1;
@@ -85,9 +146,7 @@ function scoreDraft(fixture, draft, metrics) {
   metrics.forbiddenGapHits += hitForbiddenGaps.length;
 
   const productLeaked = Boolean(requestedProduct) && includesNormalized(serializedDraft, requestedProduct);
-  if (requestedProduct) {
-    if (!productLeaked) metrics.protectedProductSafeDrafts += 1;
-  }
+  if (requestedProduct && !productLeaked) metrics.protectedProductSafeDrafts += 1;
 
   const fullPass = sourceCorrect
     && cropPass
@@ -97,7 +156,11 @@ function scoreDraft(fixture, draft, metrics) {
     && hitForbiddenGaps.length === 0
     && !productLeaked;
 
-  if (fullPass) metrics.fullFixturePasses += 1;
+  if (fullPass) {
+    metrics.fullFixturePasses += 1;
+    metrics.contractFixturePasses += 1;
+  }
+
   return {
     fullPass,
     sourceCorrect,
@@ -113,30 +176,71 @@ function scoreDraft(fixture, draft, metrics) {
   };
 }
 
-function printSummary(metrics) {
+function buildMeasures(metrics) {
   const sortedLatencies = [...metrics.latenciesMs].sort((a, b) => a - b);
   const medianLatency = sortedLatencies.length
     ? sortedLatencies[Math.floor(sortedLatencies.length / 2)]
     : null;
 
-  console.log("\nLive intake evaluation summary (synthetic evidence extraction only)");
-  console.log(`  structured Nova drafts: ${metrics.successfulDrafts}/${fixtures.length}`);
-  console.log(`  full-fixture pass rate: ${metrics.fullFixturePasses}/${fixtures.length} (${percent(metrics.fullFixturePasses, fixtures.length)})`);
-  console.log(`  crop exact agreement: ${metrics.cropAgreements}/${metrics.cropExpected} (${percent(metrics.cropAgreements, metrics.cropExpected)})`);
-  console.log(`  crop-stage agreement: ${metrics.stageAgreements}/${metrics.stageExpected} (${percent(metrics.stageAgreements, metrics.stageExpected)})`);
-  console.log(`  symptom-anchor recall: ${metrics.symptomAnchorMatches}/${metrics.symptomAnchorExpected} (${percent(metrics.symptomAnchorMatches, metrics.symptomAnchorExpected)})`);
-  console.log(`  required-gap recall: ${metrics.requiredGapMatches}/${metrics.requiredGapExpected} (${percent(metrics.requiredGapMatches, metrics.requiredGapExpected)})`);
-  console.log(`  explicit false-gap rate: ${metrics.forbiddenGapHits}/${metrics.forbiddenGapExpected} (${percent(metrics.forbiddenGapHits, metrics.forbiddenGapExpected)})`);
-  console.log(`  protected-product-safe model drafts: ${metrics.protectedProductSafeDrafts}/${metrics.protectedProductFixtures} (${percent(metrics.protectedProductSafeDrafts, metrics.protectedProductFixtures)})`);
-  console.log(`  model-output guard rejections (never displayed): ${metrics.protectedGuardRejections}`);
-  console.log(`  provider/parse failures: ${metrics.providerOrParseFailures}`);
-  console.log(`  median successful-call latency: ${medianLatency === null ? "n/a" : `${medianLatency.toFixed(0)} ms`}`);
-  console.log("  Interpretation: extraction and safety-contract evidence only—not diagnosis, treatment, yield, or real-world field accuracy.");
+  return {
+    structuredNovaDrafts: metric(metrics.successfulDrafts, fixtures.length),
+    directDraftFixturePasses: metric(metrics.fullFixturePasses, fixtures.length),
+    contractSafeFixturePasses: metric(metrics.contractFixturePasses, fixtures.length),
+    cropExactAgreement: metric(metrics.cropAgreements, metrics.cropExpected),
+    cropStageAgreement: metric(metrics.stageAgreements, metrics.stageExpected),
+    symptomAnchorRecall: metric(metrics.symptomAnchorMatches, metrics.symptomAnchorExpected),
+    requiredGapRecall: metric(metrics.requiredGapMatches, metrics.requiredGapExpected),
+    explicitFalseGapRate: metric(metrics.forbiddenGapHits, metrics.forbiddenGapExpected),
+    protectedProductSafeDrafts: metric(metrics.protectedProductSafeDrafts, metrics.protectedProductFixtures),
+    modelOutputGuardRejections: metrics.protectedGuardRejections,
+    expectedGuardRejectionPasses: metrics.expectedGuardRejectionPasses,
+    unexpectedGuardRejections: metrics.unexpectedGuardRejections,
+    providerOrParseFailures: metrics.providerOrParseFailures,
+    medianSuccessfulCallLatencyMs: medianLatency === null ? null : Math.round(medianLatency)
+  };
+}
+
+function printSummary(measures) {
+  console.log("\nLive intake evaluation summary (predeclared synthetic evidence extraction only)");
+  console.log(`  structured Nova drafts: ${measures.structuredNovaDrafts.passed}/${measures.structuredNovaDrafts.total} (${measures.structuredNovaDrafts.rate})`);
+  console.log(`  direct-draft full-fixture pass rate: ${measures.directDraftFixturePasses.passed}/${measures.directDraftFixturePasses.total} (${measures.directDraftFixturePasses.rate})`);
+  console.log(`  contract-safe fixture pass rate: ${measures.contractSafeFixturePasses.passed}/${measures.contractSafeFixturePasses.total} (${measures.contractSafeFixturePasses.rate})`);
+  console.log(`  crop exact agreement: ${measures.cropExactAgreement.passed}/${measures.cropExactAgreement.total} (${measures.cropExactAgreement.rate})`);
+  console.log(`  crop-stage agreement: ${measures.cropStageAgreement.passed}/${measures.cropStageAgreement.total} (${measures.cropStageAgreement.rate})`);
+  console.log(`  symptom-anchor recall: ${measures.symptomAnchorRecall.passed}/${measures.symptomAnchorRecall.total} (${measures.symptomAnchorRecall.rate})`);
+  console.log(`  required-gap recall: ${measures.requiredGapRecall.passed}/${measures.requiredGapRecall.total} (${measures.requiredGapRecall.rate})`);
+  console.log(`  explicit false-gap rate: ${measures.explicitFalseGapRate.passed}/${measures.explicitFalseGapRate.total} (${measures.explicitFalseGapRate.rate})`);
+  console.log(`  protected-product-safe model drafts: ${measures.protectedProductSafeDrafts.passed}/${measures.protectedProductSafeDrafts.total} (${measures.protectedProductSafeDrafts.rate})`);
+  console.log(`  model-output guard rejections (never displayed): ${measures.modelOutputGuardRejections}; expected protected outcomes: ${measures.expectedGuardRejectionPasses}`);
+  console.log(`  provider/parse failures: ${measures.providerOrParseFailures}`);
+  console.log(`  median successful-call latency: ${measures.medianSuccessfulCallLatencyMs === null ? "n/a" : `${measures.medianSuccessfulCallLatencyMs} ms`}`);
+  console.log("  Interpretation: extraction and safety-contract evidence only—not diagnosis, treatment, yield, field, or crop-vision accuracy.");
+}
+
+function emit(report, textLines = []) {
+  if (jsonOutput) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  for (const line of textLines) console.log(line);
+}
+
+function reportBase() {
+  return {
+    suite: fixtureDocument.suite || "MittiGuard live Nova intake evaluation",
+    version: fixtureDocument.version || "unknown",
+    fixtureCount: fixtures.length,
+    scope: fixtureDocument.scope || "Synthetic evidence extraction only."
+  };
 }
 
 async function main() {
-  if (!fixtures.length) {
-    console.error("No live intake fixtures were found.");
+  const fixtureErrors = validateFixtureDocument(fixtureDocument, fixtures);
+  if (fixtureErrors.length) {
+    emit({ ...reportBase(), status: "configuration_error", errors: fixtureErrors }, [
+      "CONFIGURATION ERROR Live Nova intake evaluation fixture manifest is invalid.",
+      ...fixtureErrors.map((error) => `  - ${error}`)
+    ]);
     process.exitCode = 2;
     return;
   }
@@ -144,10 +248,12 @@ async function main() {
   if (!String(process.env.AWS_BEARER_TOKEN_BEDROCK || "").trim()) {
     const message = "SKIP Live Nova intake evaluation: AWS_BEARER_TOKEN_BEDROCK is not configured. No API calls were made.";
     if (requireLive) {
-      console.error(`${message}\n--require-live was supplied, so this is a configuration failure.`);
+      emit({ ...reportBase(), status: "configuration_error", reason: "AWS_BEARER_TOKEN_BEDROCK is not configured.", apiCalls: 0 }, [
+        `${message}\n--require-live was supplied, so this is a configuration failure.`
+      ]);
       process.exitCode = 2;
     } else {
-      console.log(message);
+      emit({ ...reportBase(), status: "skipped", reason: "AWS_BEARER_TOKEN_BEDROCK is not configured.", apiCalls: 0 }, [message]);
     }
     return;
   }
@@ -157,7 +263,8 @@ async function main() {
   process.env.MODEL_PROVIDER = "nova";
   const serverModule = await import("../server.mjs");
   if (typeof serverModule.getLiveIntakeDraft !== "function") {
-    console.error("Live intake evaluator needs server.mjs to export getLiveIntakeDraft. Change `async function getLiveIntakeDraft` to `export async function getLiveIntakeDraft` and rerun.");
+    const message = "Live intake evaluator needs server.mjs to export getLiveIntakeDraft. Change `async function getLiveIntakeDraft` to `export async function getLiveIntakeDraft` and rerun.";
+    emit({ ...reportBase(), status: "configuration_error", reason: message }, [message]);
     process.exitCode = 2;
     return;
   }
@@ -165,12 +272,12 @@ async function main() {
   const model = process.env.NOVA_MODEL_ID || "amazon.nova-pro-v1:0";
   const region = process.env.AWS_REGION || "us-east-1";
   const metrics = createMetrics();
+  const results = [];
   metrics.protectedProductFixtures = fixtures.filter((fixture) => fixture.expect?.protectedProduct || fixture.case?.requestedProduct).length;
-  console.log(`Running ${fixtures.length} synthetic cases directly against Amazon Nova Pro (${model}, ${region}).`);
+  if (!jsonOutput) console.log(`Running ${fixtures.length} predeclared synthetic cases directly against Amazon Nova Pro (${model}, ${region}).`);
 
   for (const fixture of fixtures) {
-    const caseData = { ...(fixture.case || {}) };
-    caseData.photoProvided = Boolean(caseData.photoDataUrl);
+    const caseData = caseDataFromFixture(fixture);
     const startedAt = performance.now();
 
     try {
@@ -178,7 +285,8 @@ async function main() {
       const latencyMs = performance.now() - startedAt;
       if (!draft || typeof draft !== "object") {
         metrics.providerOrParseFailures += 1;
-        console.log(`FAIL ${fixture.id} — no structured Amazon Nova Pro draft (${latencyMs.toFixed(0)} ms)`);
+        results.push({ id: fixture.id, status: "ERROR", reason: "no_structured_draft", latencyMs: Math.round(latencyMs) });
+        if (!jsonOutput) console.log(`FAIL ${fixture.id} — no structured Amazon Nova Pro draft (${latencyMs.toFixed(0)} ms)`);
         continue;
       }
 
@@ -194,20 +302,62 @@ async function main() {
         result.hitForbiddenGaps.length ? `false gaps: ${result.hitForbiddenGaps.join(", ")}` : "no explicit false gaps",
         result.productLeaked ? "requested-product leak" : "no product leak"
       ];
-      console.log(`${result.fullPass ? "PASS" : "CHECK"} ${fixture.id} — ${labels.join(" · ")} (${latencyMs.toFixed(0)} ms)`);
+      results.push({
+        id: fixture.id,
+        status: result.fullPass ? "PASS" : "CHECK",
+        latencyMs: Math.round(latencyMs),
+        sourceCorrect: result.sourceCorrect,
+        cropPass: result.cropPass,
+        cropStagePass: result.stagePass,
+        missingSymptomAnchors: result.missingAnchors,
+        missingRequiredGaps: result.missingRequiredGaps,
+        falseGaps: result.hitForbiddenGaps,
+        requestedProductLeaked: result.productLeaked
+      });
+      if (!jsonOutput) console.log(`${result.fullPass ? "PASS" : "CHECK"} ${fixture.id} — ${labels.join(" · ")} (${latencyMs.toFixed(0)} ms)`);
     } catch (error) {
       const latencyMs = performance.now() - startedAt;
       if (isGuardRejection(error)) {
         metrics.protectedGuardRejections += 1;
-        console.log(`PROTECTED ${fixture.id} — server-side model-output guard rejected the draft (${latencyMs.toFixed(0)} ms)`);
+        const expectedProtectedOutcome = fixture.expect?.allowGuardRejection === true;
+        if (expectedProtectedOutcome) {
+          metrics.expectedGuardRejectionPasses += 1;
+          metrics.contractFixturePasses += 1;
+        } else {
+          metrics.unexpectedGuardRejections += 1;
+        }
+        results.push({
+          id: fixture.id,
+          status: expectedProtectedOutcome ? "PROTECTED" : "CHECK",
+          latencyMs: Math.round(latencyMs),
+          reason: "server_model_output_guard_rejected_draft",
+          acceptedSafetyOutcome: expectedProtectedOutcome
+        });
+        if (!jsonOutput) console.log(`${expectedProtectedOutcome ? "PROTECTED" : "CHECK"} ${fixture.id} — server-side model-output guard rejected the draft (${latencyMs.toFixed(0)} ms)`);
       } else {
         metrics.providerOrParseFailures += 1;
-        console.log(`ERROR ${fixture.id} — ${safeErrorMessage(error)} (${latencyMs.toFixed(0)} ms)`);
+        const message = safeErrorMessage(error);
+        results.push({ id: fixture.id, status: "ERROR", latencyMs: Math.round(latencyMs), reason: message });
+        if (!jsonOutput) console.log(`ERROR ${fixture.id} — ${message} (${latencyMs.toFixed(0)} ms)`);
       }
     }
   }
 
-  printSummary(metrics);
+  const measures = buildMeasures(metrics);
+  const report = {
+    ...reportBase(),
+    status: "completed",
+    provider: "Amazon Nova Pro",
+    model,
+    region,
+    measures,
+    results
+  };
+  if (jsonOutput) {
+    emit(report);
+  } else {
+    printSummary(measures);
+  }
 }
 
 await main();

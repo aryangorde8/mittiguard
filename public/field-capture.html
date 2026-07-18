@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MittiGuard secure field evidence capture" />
+    <meta name="referrer" content="no-referrer" />
+    <title>MittiGuard Field Capture</title>
+    <link rel="stylesheet" href="/field-capture.css" />
+  </head>
+  <body>
+    <main class="capture-shell">
+      <header class="capture-header">
+        <a class="brand" href="/" aria-label="MittiGuard Relay home"><span class="brand-mark">m</span><span>Mitti<span>Guard</span></span></a>
+        <span class="header-label">Secure Field Capture</span>
+      </header>
+
+      <section class="intro">
+        <p class="eyebrow">ONE TASK · TIME-BOUND LINK</p>
+        <h1>Capture evidence.<br /><em>Do not release a sale.</em></h1>
+        <p>This mobile link can add only the evidence task assigned to you. It cannot recommend an input, change the policy state, or release an invoice.</p>
+      </section>
+
+      <section class="notice no-release" aria-live="polite">
+        <span class="notice-dot"></span>
+        <div><b>Invoice remains NOT RELEASED</b><small>Evidence can move a task forward. Policy controls the sale.</small></div>
+      </section>
+
+      <section class="state-card" id="capture-loading" aria-live="polite">
+        <span class="loader"></span>
+        <p>Verifying your single-task link…</p>
+      </section>
+
+      <section class="capture-content hidden" id="capture-content">
+        <article class="task-card">
+          <div class="task-head"><span>ASSIGNED FIELD TASK</span><b id="task-expiry">—</b></div>
+          <h2 id="task-title">Loading task…</h2>
+          <dl class="task-context">
+            <div><dt>FIELD</dt><dd id="task-field">—</dd></div>
+            <div><dt>CROP</dt><dd id="task-crop">—</dd></div>
+            <div><dt>CASE</dt><dd id="task-case">—</dd></div>
+          </dl>
+        </article>
+
+        <form class="capture-form" id="capture-form">
+          <div class="form-heading"><span>01</span><div><h2>Neutral observation</h2><p>Describe what you saw. Do not add a product, dose, or treatment recommendation.</p></div></div>
+          <label for="observation">What did you observe?</label>
+          <textarea id="observation" rows="4" maxlength="500" placeholder="Example: Whole-plant photo captured after rain; yellowing is visible on lower leaves."></textarea>
+
+          <div class="form-heading upload-heading"><span>02</span><div><h2>Optional evidence image</h2><p>Use the camera or choose one field photo or requested-document image. It is compressed on this device before upload.</p></div></div>
+          <label class="camera-upload" for="field-image">
+            <input id="field-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" capture="environment" />
+            <span class="camera-icon">⌁</span>
+            <span><b>Take or choose an evidence image</b><small id="image-status">No image selected</small></span>
+          </label>
+          <p class="privacy-note">MittiGuard retains only image format, size, and a SHA-256 digest for this task—never the raw image bytes.</p>
+
+          <button class="submit-button" type="submit" id="capture-submit"><span>Submit evidence for review</span><strong>→</strong></button>
+          <p class="form-note">Submitting this evidence leaves the invoice <b>NOT RELEASED</b>.</p>
+        </form>
+      </section>
+
+      <section class="state-card hidden" id="capture-success" aria-live="polite">
+        <div class="success-mark">✓</div>
+        <p class="eyebrow">EVIDENCE RECEIVED</p>
+        <h2>Task sent to the Evidence Relay.</h2>
+        <p id="success-copy">The policy state did not change.</p>
+        <div class="success-state"><span>SALE AUTHORIZATION</span><b>NOT RELEASED</b></div>
+      </section>
+
+      <section class="state-card error-card hidden" id="capture-error" aria-live="assertive">
+        <div class="error-mark">!</div>
+        <h2>That Field Capture link cannot be used.</h2>
+        <p id="error-copy">It may have expired, been replaced, or already been submitted.</p>
+        <a href="/">Return to MittiGuard Relay</a>
+      </section>
+
+      <footer>One evidence task · one time-bound capability · no sale authorization</footer>
+    </main>
+    <script type="module" src="/field-capture.js"></script>
+  </body>
+</html>

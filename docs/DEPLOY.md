@@ -23,7 +23,7 @@ docker run -d --name mittiguard --restart unless-stopped \
 Do not mount over `/app/data`; the container needs its bundled demo fixture.
 If an earlier deployment used `/opt/mittiguard/data/store.json`, make a backup
 and **copy** that file into `/opt/mittiguard/runtime/store.json` before the
-first V4 start. Never commit either file.
+first V4.2 start. Never commit either file.
 
 ## Required server environment
 
@@ -39,7 +39,7 @@ AWS_BEARER_TOKEN_BEDROCK=<Bedrock bearer token>
 ```
 
 Generate the audit secret once with `openssl rand -hex 32`. Set it before the
-first V4 relay event and keep it stable: changing it invalidates verification
+first V4.2 relay event and keep it stable: changing it invalidates verification
 of earlier HMAC ledger entries. Store the environment file with mode `600`.
 The Human Review Attestation deliberately refuses to run without this seal.
 If the existing demo ledger predates the secret or the current sealed-audit
@@ -65,3 +65,11 @@ mittiguard.example.com {
 After deployment, open `/api/health`, then run one jury case and confirm
 `/api/ledger/verify` returns `valid: true`. With an audit secret and a newly
 created production ledger, it should also return `sealed: true`.
+
+For the mobile Field Capture demo, create a link from a pending Field Capture
+task and confirm that it begins with your public `https://` domain and opens on
+a phone. The one-time capability is kept after `#` in the URL fragment, so it
+is not sent to Caddy or ordinary access logs. The page sends that capability
+only to the narrow same-origin Field Capture endpoints; it cannot release a
+sale. Do not use a hosted QR-code service for this link because that would
+expose the capability to a third party.

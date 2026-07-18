@@ -79,8 +79,48 @@ try {
   const taskPath = `/api/cases/${allowedBody.case.id}/tasks/${firstTask.id}/evidence-received`;
   assert.equal((await post(taskPath, { note: "No key." })).status, 403);
 
-  let relayCase = allowedBody.case;
-  for (const task of allowedBody.case.relay.tasks) {
+  const fieldTask = allowedBody.case.relay.tasks.find((task) => task.ownerRole === "FIELD_CAPTURE");
+  assert.ok(fieldTask, "operations fixture must create a Field Capture task");
+  const fieldLinkPath = `/api/cases/${allowedBody.case.id}/tasks/${fieldTask.id}/field-capture-link`;
+  assert.equal((await post(fieldLinkPath, { ttlMinutes: 5 })).status, 403);
+  const issuedLinkResponse = await post(fieldLinkPath, { ttlMinutes: 5 }, true);
+  const issuedLink = await issuedLinkResponse.json();
+  assert.equal(issuedLinkResponse.status, 201);
+  assert.equal(issuedLink.saleAuthorization, "NOT_RELEASED");
+  assert.match(issuedLink.fieldCaptureUrl, /\/field-capture\.html#mgfc_/);
+  const capability = decodeURIComponent(issuedLink.fieldCaptureUrl.split("#")[1]);
+
+  const mobileContextResponse = await fetch(`http://127.0.0.1:${port}/api/field-capture/context`, {
+    headers: { Authorization: `Bearer ${capability}` }
+  });
+  const mobileContext = await mobileContextResponse.json();
+  assert.equal(mobileContextResponse.status, 200);
+  assert.equal(mobileContext.context.task.id, fieldTask.id);
+  assert.equal(mobileContext.context.saleAuthorization, "NOT_RELEASED");
+
+  const mobileEvidenceResponse = await fetch(`http://127.0.0.1:${port}/api/field-capture/submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${capability}`
+    },
+    body: JSON.stringify({
+      observation: "Field image captured after rain; lower-leaf yellowing remains visible.",
+      imageDataUrl: "data:image/jpeg;base64,/9j/2Q=="
+    })
+  });
+  const mobileEvidence = await mobileEvidenceResponse.json();
+  assert.equal(mobileEvidenceResponse.status, 200);
+  assert.equal(mobileEvidence.task.id, fieldTask.id);
+  assert.equal(mobileEvidence.saleAuthorization, "NOT_RELEASED");
+  assert.equal(mobileEvidence.saleState, "ON_HOLD");
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/field-capture/context`, {
+    headers: { Authorization: `Bearer ${capability}` }
+  })).status, 404);
+
+  let relayCase = (await fetch(`http://127.0.0.1:${port}/api/cases/${allowedBody.case.id}`).then((response) => response.json())).case;
+  for (const task of relayCase.relay.tasks) {
+    if (task.id === fieldTask.id) continue;
     const taskResponse = await post(`/api/cases/${allowedBody.case.id}/tasks/${task.id}/evidence-received`, {
       note: "Operator-key protected synthetic evidence."
     }, true);
@@ -128,7 +168,7 @@ try {
   assert.equal(outcomeResponse.status, 200);
   assert.equal(outcome.case.saleState, "ON_HOLD");
   assert.equal(outcome.case.reviewAttestation.saleAuthorization, "NOT_RELEASED");
-  console.log("PASS operations mode rejects unauthenticated relay, attestation, and outcome writes while preserving the no-release POS path behind an operator key.");
+  console.log("PASS operations mode keeps issuance and relay writes behind an operator key while a time-bound Field Capture capability can submit exactly one no-release evidence task.");
 } finally {
   child.kill("SIGTERM");
   await rm(directory, { recursive: true, force: true });

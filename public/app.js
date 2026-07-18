@@ -22,6 +22,7 @@ let reviewAttestationVerification = null;
 let reviewAttestationVerificationCaseId = null;
 let reviewAttestationConfirmationCaseId = null;
 let reviewAttestationReviewerCaseId = null;
+const fieldCaptureLinks = new Map();
 
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
@@ -35,6 +36,15 @@ function switchSection(sectionId) {
   $$(".view").forEach((view) => view.classList.toggle("active", view.id === sectionId));
   $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.section === sectionId));
   scrollToTop();
+}
+
+function setWorkflowStage(stage = null) {
+  const stages = ["intake", "gate", "pos", "relay"];
+  const activeIndex = stages.indexOf(stage);
+  $$('[data-workflow-step]').forEach((node, index) => {
+    node.classList.toggle("done", activeIndex >= 0 && index < activeIndex);
+    node.classList.toggle("active", activeIndex === index);
+  });
 }
 
 function listItems(items, emptyText) {
@@ -53,6 +63,7 @@ function dateLabel(value, includeTime = false) {
 }
 
 function resetDemo() {
+  fieldCaptureLinks.clear();
   form.reset();
   form.elements.farmerName.value = "Asha Reddy";
   form.elements.fieldId.value = "GNT-14 · North plot";
@@ -78,10 +89,12 @@ function resetDemo() {
   $("#case-number").textContent = "READY";
   $("#sale-preview").className = "sale-preview";
   $("#sale-preview").innerHTML = "<span class=\"dot\"></span><span>Invoice awaiting evidence</span>";
+  setWorkflowStage();
   scrollToTop();
 }
 
 function startLiveCase() {
+  fieldCaptureLinks.clear();
   form.reset();
   demoMode = false;
   currentCase = null;
@@ -96,6 +109,7 @@ function startLiveCase() {
   $("#case-number").textContent = "NEW";
   $("#sale-preview").className = "sale-preview";
   $("#sale-preview").innerHTML = "<span class=\"dot\"></span><span>Invoice awaiting evidence</span>";
+  setWorkflowStage();
   form.elements.farmerName.focus();
   scrollToTop();
 }
@@ -103,7 +117,7 @@ function startLiveCase() {
 async function resetDemoLedger() {
   const confirmed = window.confirm("Load the clean jury demo? This permanently clears only the local MittiGuard demo ledger on this computer.");
   if (!confirmed) return;
-  const buttons = [$("#reset-demo-ledger"), $("#reset-demo-ledger-inline")];
+  const buttons = [$("#reset-demo-ledger"), $("#start-jury-demo")].filter(Boolean);
   buttons.forEach((button) => { button.disabled = true; button.textContent = "Resetting demo…"; });
   try {
     const response = await fetch("/api/demo/reset", {
@@ -123,9 +137,11 @@ async function resetDemoLedger() {
   } catch (error) {
     window.alert(error.message);
   } finally {
-    buttons.forEach((button, index) => {
+    buttons.forEach((button) => {
       button.disabled = false;
-      button.textContent = index === 0 ? "↺ Load clean jury demo" : "Reset jury ledger";
+      button.innerHTML = button.id === "start-jury-demo"
+        ? "<span>Start clean jury demo</span><strong>→</strong>"
+        : "↺ Load clean jury demo";
     });
   }
 }
@@ -262,9 +278,12 @@ function renderPosReceipt(receipt = null, auditProof = null) {
 function renderBypassProof(result) {
   const { case: record, gate } = result;
   const matched = Boolean(gate.repeatRisk?.detected);
-  $("#proof-dealer").textContent = record.previousInputFailed ? "Prior failure: reported" : "Prior failure: not reported";
-  $("#proof-memory").textContent = matched ? "Unresolved matching field record found" : "No matching field record found";
-  $("#proof-pos").textContent = result.receipt ? `Receipt: ${result.receipt.saleAuthorization.replaceAll("_", " ")}` : `Sale: ${gate.saleState.replaceAll("_", " ")}`;
+  $("#proof-dealer").textContent = record.previousInputFailed ? "Prior failure reported" : "No prior failure reported";
+  $("#proof-memory").textContent = matched ? "Unresolved Evidence Debt found" : "No unresolved Evidence Debt found";
+  $("#proof-pos").textContent = result.receipt?.saleAuthorization?.replaceAll("_", " ") || "NOT RELEASED";
+  $("#bypass-proof-headline").textContent = matched
+    ? "Repeat sale stopped before it became an invoice."
+    : "Server policy—not a browser control—returns NOT RELEASED.";
   $("#bypass-proof").classList.toggle("match-found", matched);
 }
 
@@ -359,6 +378,7 @@ function renderResult(result) {
   renderPosReceipt(result.receipt, result.auditProof);
   renderAuditProof(result.auditProof);
   resultPanel.classList.remove("hidden");
+  setWorkflowStage("relay");
   selectedRelayId = result.case.id;
   loadFieldMemory(result.case.field);
   loadRelay(result.case.id);
@@ -370,6 +390,7 @@ async function assess(event) {
   const button = $(".primary-button", form);
   button.disabled = true;
   button.innerHTML = "<span>Building evidence relay…</span><strong>◌</strong>";
+  setWorkflowStage("gate");
   try {
     const response = await fetch("/api/pos/authorize-sale", {
       method: "POST",
@@ -428,6 +449,7 @@ function currentReviewAttestationPreview(record) {
 }
 
 function renderReviewAttestation(record) {
+  const panel = $("#review-attestation");
   const reviewerInput = $("#attestation-reviewer");
   const dispositionInput = $("#attestation-disposition");
   const noteInput = $("#attestation-note");
@@ -441,6 +463,8 @@ function renderReviewAttestation(record) {
 
   if (!record) {
     [reviewerInput, dispositionInput, noteInput, confirmedInput, previewButton, attestButton, ownerButton].forEach((control) => { control.disabled = true; });
+    panel.classList.remove("ready-for-attestation");
+    ownerButton.classList.add("hidden");
     status.textContent = "NOT RELEASED";
     status.className = "waiting";
     help.textContent = "Select a case after it reaches extension review to create a non-authorizing review record.";
@@ -475,6 +499,9 @@ function renderReviewAttestation(record) {
   const preview = currentReviewAttestationPreview(record);
   const previewEligible = Boolean(preview?.eligible && preview?.evidenceDigest && preview?.auditAnchor?.headHash);
   const frozen = Boolean(attestation);
+  const revealControls = frozen || (reviewReady && tasksComplete);
+  panel.classList.toggle("ready-for-attestation", revealControls);
+  ownerButton.classList.toggle("hidden", !revealControls);
 
   if (!attestation && reviewAttestationConfirmationCaseId !== record.id) {
     confirmedInput.checked = false;
@@ -516,7 +543,7 @@ function renderReviewAttestation(record) {
   if (!reviewReady) {
     status.textContent = "WAITING FOR EVIDENCE";
     status.className = "waiting";
-    help.textContent = "Complete every capture task first. Neither a reviewer nor this interface can release the invoice.";
+    help.textContent = "Next required: record every field-evidence task. No model, task, or reviewer can release the invoice.";
   } else if (!ownerMatchesRequested) {
     status.textContent = "ASSIGN REVIEWER";
     status.className = "waiting";
@@ -587,6 +614,38 @@ function renderAudit(events = []) {
   }).join("");
 }
 
+function fieldCaptureLinkKey(caseId, taskId) {
+  return `${caseId}:${taskId}`;
+}
+
+function fieldCaptureReceiptLabel(task) {
+  const receipt = task.fieldCapture;
+  if (!receipt) return "";
+  const image = receipt.image
+    ? ` · image receipt ${escapeHtml(receipt.image.mediaType)} · SHA-256 ${escapeHtml(shortHash(receipt.image.sha256))}`
+    : " · observation receipt";
+  return `<small class="mobile-capture-receipt">Mobile receipt recorded${image} · raw image bytes were not retained · invoice still ON HOLD</small>`;
+}
+
+function renderRelayTask(record, task) {
+  const received = task.status === "EVIDENCE_RECEIVED";
+  const isMobileCaptureTask = task.ownerRole === "FIELD_CAPTURE";
+  const link = fieldCaptureLinks.get(fieldCaptureLinkKey(record.id, task.id));
+  let actions = "";
+
+  if (received) {
+    actions = "<button class=\"task-action\" disabled>Received</button>";
+  } else if (isMobileCaptureTask) {
+    actions = `<div class="mobile-capture-actions">${link
+      ? `<button class="task-action" data-copy-field-capture-link="${escapeHtml(task.id)}">Copy secure mobile link</button><a class="task-action mobile-capture-open" href="${escapeHtml(link.fieldCaptureUrl)}" target="_blank" rel="noopener">Open capture screen</a><small>One-time link · expires ${escapeHtml(dateLabel(link.expiresAt, true))}</small>`
+      : `<button class="task-action mobile-capture-link" data-field-capture-link="${escapeHtml(task.id)}">Generate secure mobile link</button>`}<button class="task-action" data-task-id="${escapeHtml(task.id)}">Record evidence in desk</button></div>`;
+  } else {
+    actions = `<button class="task-action" data-task-id="${escapeHtml(task.id)}">Record evidence</button>`;
+  }
+
+  return `<div class="relay-task ${received ? "complete" : ""}"><span>${received ? "✓" : "→"}</span><div><b>${escapeHtml(task.title)}</b><small>${escapeHtml(task.ownerRole.replaceAll("_", " "))} · due ${escapeHtml(dateLabel(task.dueAt, true))}</small>${task.note ? `<p>${escapeHtml(task.note)}</p>` : ""}${fieldCaptureReceiptLabel(task)}</div>${actions}</div>`;
+}
+
 function renderRelayDetail() {
   const record = relayCases.find((item) => item.id === selectedRelayId) || relayCases[0];
   if (!record) {
@@ -596,6 +655,7 @@ function renderRelayDetail() {
     $("#handoff-code").textContent = "—";
     $("#relay-sla").textContent = "—";
     $("#handoff-message").textContent = "No handoff selected.";
+    $("#relay-next").innerHTML = "<span>NEXT REQUIRED</span><b>Open a relay case to see the exact evidence work.</b><p>No model, task, or reviewer can release the invoice.</p>";
     $("#relay-task-list").innerHTML = "";
     $("#relay-audit").innerHTML = "<p>Select a case to inspect each policy and handoff event.</p>";
     renderAuditProof(null);
@@ -616,7 +676,13 @@ function renderRelayDetail() {
   $("#relay-sla").textContent = remaining.length ? `SLA due ${dateLabel(relay.slaDueAt, true)} · ${remaining.length} task${remaining.length === 1 ? "" : "s"} open` : "Evidence packet received · sale still on hold";
   $("#handoff-message").textContent = relay.handoffMessage || "Handoff message unavailable.";
   $("#copy-handoff").disabled = false;
-  $("#relay-task-list").innerHTML = relay.tasks?.map((task) => `<div class="relay-task ${task.status === "EVIDENCE_RECEIVED" ? "complete" : ""}"><span>${task.status === "EVIDENCE_RECEIVED" ? "✓" : "→"}</span><div><b>${escapeHtml(task.title)}</b><small>${escapeHtml(task.ownerRole.replaceAll("_", " "))} · due ${escapeHtml(dateLabel(task.dueAt, true))}</small>${task.note ? `<p>${escapeHtml(task.note)}</p>` : ""}</div><button class="task-action" data-task-id="${escapeHtml(task.id)}" ${task.status === "EVIDENCE_RECEIVED" ? "disabled" : ""}>${task.status === "EVIDENCE_RECEIVED" ? "Received" : "Record evidence"}</button></div>`).join("") || "<p>No evidence tasks are pending.</p>";
+  const nextStep = remaining.length
+    ? { title: remaining[0].title, detail: `${remaining.length} evidence task${remaining.length === 1 ? "" : "s"} remain. Recording evidence only moves the relay; it cannot release the invoice.` }
+    : record.reviewAttestation
+      ? { title: "Record a neutral field outcome", detail: "The sealed review is complete. An observation can improve future Field Memory, never this sale authorization." }
+      : { title: "Assign and attest a named reviewer", detail: "The evidence packet is complete, but the invoice stays NOT RELEASED until a qualified reviewer records a non-authorizing attestation." };
+  $("#relay-next").innerHTML = `<span>NEXT REQUIRED</span><b>${escapeHtml(nextStep.title)}</b><p>${escapeHtml(nextStep.detail)}</p>`;
+  $("#relay-task-list").innerHTML = relay.tasks?.map((task) => renderRelayTask(record, task)).join("") || "<p>No evidence tasks are pending.</p>";
   const outcomeReady = relay.phase === "EXTENSION_REVIEW" && Boolean(record.reviewAttestation);
   const fieldOutcome = record.fieldOutcome;
   $("#outcome-state").disabled = !outcomeReady;
@@ -634,6 +700,8 @@ function renderRelayDetail() {
   $("#relay-audit").innerHTML = renderAudit(relay.audit);
   loadAuditProof(record.id);
   $$("[data-task-id]").forEach((button) => button.addEventListener("click", () => completeTask(button.dataset.taskId)));
+  $$("[data-field-capture-link]").forEach((button) => button.addEventListener("click", () => issueFieldCaptureLink(button.dataset.fieldCaptureLink)));
+  $$("[data-copy-field-capture-link]").forEach((button) => button.addEventListener("click", () => copyFieldCaptureLink(button.dataset.copyFieldCaptureLink)));
 }
 
 async function loadRelay(preferredId) {
@@ -666,6 +734,7 @@ async function completeTask(taskId) {
     if (!response.ok) throw new Error(data.error || "Unable to record evidence.");
     const index = relayCases.findIndex((item) => item.id === data.case.id);
     if (index >= 0) relayCases[index] = data.case;
+    fieldCaptureLinks.delete(fieldCaptureLinkKey(data.case.id, taskId));
     invalidateReviewAttestationPreview(data.case.id);
     currentCase = data.case;
     renderRelayBoard();
@@ -674,6 +743,48 @@ async function completeTask(taskId) {
   } catch (error) {
     if (button) { button.disabled = false; button.textContent = error.message; }
   }
+}
+
+async function issueFieldCaptureLink(taskId) {
+  const record = relayCases.find((item) => item.id === selectedRelayId);
+  if (!record) return;
+  const button = $(`[data-field-capture-link="${taskId}"]`);
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Creating secure link…";
+  }
+  try {
+    const response = await fetch(`/api/cases/${encodeURIComponent(record.id)}/tasks/${encodeURIComponent(taskId)}/field-capture-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ttlMinutes: 30 })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Unable to create a Field Capture link.");
+    fieldCaptureLinks.set(fieldCaptureLinkKey(record.id, taskId), data);
+    await loadRelay(record.id);
+  } catch (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = error.message;
+    }
+  }
+}
+
+async function copyFieldCaptureLink(taskId) {
+  const record = relayCases.find((item) => item.id === selectedRelayId);
+  const link = record && fieldCaptureLinks.get(fieldCaptureLinkKey(record.id, taskId));
+  if (!link?.fieldCaptureUrl) return;
+  const button = $(`[data-copy-field-capture-link="${taskId}"]`);
+  try {
+    await navigator.clipboard?.writeText(link.fieldCaptureUrl);
+    if (button) button.textContent = "Secure link copied";
+  } catch {
+    window.prompt("Copy this one-time Field Capture link:", link.fieldCaptureUrl);
+  }
+  setTimeout(() => {
+    if (button) button.textContent = "Copy secure mobile link";
+  }, 1700);
 }
 
 async function loadReviewAttestationPreview() {
@@ -917,8 +1028,15 @@ async function loadHealth() {
     const health = await response.json();
     const path = health.liveProviderEnabled ? `${health.runtimeProvider} evidence path active` : "Deterministic demo path active";
     $("#model-status").textContent = health.deploymentMode === "jury-demo" ? `${path} · jury demo` : path;
+    const ledger = health.auditLedger || {};
+    $("#ledger-status").textContent = ledger.valid && ledger.sealed
+      ? "HMAC-SEALED AUDIT LEDGER"
+      : ledger.valid
+        ? "DEMO HASH-CHAIN LEDGER"
+        : "AUDIT LEDGER NEEDS VERIFICATION";
   } catch {
     $("#model-status").textContent = "Offline demo path";
+    $("#ledger-status").textContent = "AUDIT LEDGER UNAVAILABLE";
   }
 }
 
@@ -976,10 +1094,10 @@ photoInput.addEventListener("change", async () => {
 });
 
 form.addEventListener("submit", assess);
-$("#reset-demo").addEventListener("click", resetDemo);
+$("#start-jury-demo").addEventListener("click", resetDemoLedger);
 $("#reset-demo-ledger").addEventListener("click", resetDemoLedger);
-$("#reset-demo-ledger-inline").addEventListener("click", resetDemoLedger);
 $("#new-live-case").addEventListener("click", startLiveCase);
+$("#refresh-relay").addEventListener("click", () => loadRelay(selectedRelayId));
 $("#voice-capture").addEventListener("click", startVoiceCapture);
 $("#extract-intake").addEventListener("click", extractIntakeDraft);
 $("#apply-intake-draft").addEventListener("click", applyIntakeDraft);

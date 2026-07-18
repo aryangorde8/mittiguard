@@ -4,7 +4,7 @@ Use the bundled demo case. Do not claim a real diagnosis, yield improvement, reg
 
 ## 0:00–0:22 — The failure we refuse
 
-“A farmer arrives at a shop after rain with yellowing chilli leaves and a failed previous input. Most farm tools try to name a disease and sell a product. MittiGuard Relay does the opposite: it turns uncertainty into owned evidence work before the invoice is allowed to continue.”
+“A farmer arrives at a shop after rain with yellowing chilli leaves and a failed previous input. At the counter, incomplete field evidence is often pressured into a purchase decision. MittiGuard Relay does the opposite: it turns uncertainty into owned evidence work before the invoice is allowed to continue.”
 
 Before recording, use **Load clean jury demo** and confirm the reset. This gives the video one curated field history and no duplicate test cases. Then turn **off** “Prior input did not resolve the issue”; the whole point is to show that the server-side field-memory match still blocks the invoice.
 
@@ -18,21 +18,21 @@ Say: “The voice transcript is browser capture with a typed fallback. Nova rece
 
 ## 0:48–1:17 — The intervention
 
-Click **Open Evidence Relay**. Pause on the new **Counter / POS response** receipt stating **NOT RELEASED**, its decision digest, and its audit anchor. Then hold on the invoice state changing to **PAUSED** and the dark **Decision Room** evidence map.
+Click **Open Evidence Relay**. First pause on **The bypass test**: the dealer claims no prior failure, the server finds unresolved **Evidence Debt**, and the POS response is **NOT RELEASED**. Then show the decision receipt, its decision digest and audit anchor, the invoice state changing to **PAUSED**, and the dark **Decision Room** evidence map.
 
 Say: “The map shows the signals separately: story, image, soil, weather, and field memory. The proof strip makes the control path explicit: dealer input is not authority; server-side Field Memory finds the unresolved prior outcome; the POS receives NOT RELEASED. Even if a dealer says the previous input did not fail, the server creates Evidence Debt and blocks the invoice. Nova creates an evidence-only brief; it cannot change this state.”
 
-## 1:17–1:45 — The memorable handoff
+## 1:17–1:45 — Make the handoff literal
 
 Open **Evidence Relay**. Show the three lanes: **Counter block**, **Field capture**, and **Extension review**. Select the newly created card.
 
-Say: “This is the difference between a warning and an operations system. MittiGuard generated two exact tasks, assigned the field-capture role, set a 24-hour SLA, and prepared a WhatsApp-ready request. It does not send a message itself; the handoff stays reviewable.”
+Say: “This is the difference between a warning and an operations system. MittiGuard generated two exact tasks, assigned the field-capture role, set a 24-hour SLA, and prepared a reviewable handoff.”
 
-Click **Copy WhatsApp-ready request** and show the handoff code, task list, and audit trace.
+For the Field Capture task, click **Generate secure mobile link** and copy it. Open the link on a phone (or a narrow second browser window), capture an evidence image and neutral observation, then submit. The one-time link can advance only that task; it cannot see a product request, assign a reviewer, change the policy state, or release an invoice. Back on the desktop, click **Refresh relay** and show the mobile receipt, short SHA-256 digest, and HMAC-linked audit event.
 
 ## 1:45–2:20 — Evidence can move; the sale cannot
 
-Click **Record evidence** for every requested task. The case moves to
+Click **Record evidence** for every remaining requested task. The case moves to
 **Extension review**, but the invoice stays on hold. Enter the clearly labelled
 synthetic demo reviewer identity, click **Assign extension reviewer**, then
 click **Record human review attestation**.
@@ -56,5 +56,7 @@ Say: “If this farmer returns, the dealer does not start from a blank conversat
 ## 2:40–3:00 — Proof and close
 
 Open **Safety bench** and click **Run safety replay**. Say: “The running app replays 45 deterministic checks: nine policy fixtures, a 24-case adversarial Evidence Debt benchmark, and 12 gate-to-review integrity checks. The POS contract is tested separately. They support one narrow claim: ambiguity never becomes automated input authorization.”
+
+Then say: “I built MittiGuard with Codex using GPT-5.6. It accelerated the policy state machine, the audit and repeat-risk tests, and this full-stack workflow. I reviewed and tested each workflow; Amazon Nova Pro is the runtime evidence-brief provider.”
 
 End: “Farm-input decisions compound across livelihoods, soils, and food systems. MittiGuard Relay does not claim to solve food security. It helps dealers stop selling blind—and recover the evidence a human needs to act responsibly.”
