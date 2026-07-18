@@ -80,3 +80,112 @@ is not sent to Caddy or ordinary access logs. The page sends that capability
 only to the narrow same-origin Field Capture endpoints; it cannot release a
 sale. Do not use a hosted QR-code service for this link because that would
 expose the capability to a third party.
+
+## AWS Lightsail without Docker
+
+This is the shortest repeatable path for a small Ubuntu Lightsail instance.
+It keeps the application on localhost and does not depend on Docker or Caddy.
+Replace `mittiguard.example.com` with the subdomain whose DNS A record points
+to the instance's **static** IP.
+
+Install Node 22, Nginx, and Certbot once:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs nginx certbot python3-certbot-nginx git
+```
+
+Clone the public repository and make a runtime directory that Git never
+touches:
+
+```bash
+sudo mkdir -p /opt/mittiguard /var/lib/mittiguard
+sudo chown -R "$USER":"$USER" /opt/mittiguard /var/lib/mittiguard
+git clone https://github.com/aryangorde8/mittiguard.git /opt/mittiguard
+```
+
+Create `/etc/mittiguard.env` with mode `600`. Use fresh credentials; never
+paste a token into the repository or terminal recording:
+
+```env
+PORT=8080
+MITTIGUARD_STORE_PATH=/var/lib/mittiguard/store.json
+MITTIGUARD_AUDIT_SECRET=<stable-secret-from-openssl-rand-hex-32>
+MITTIGUARD_MODE=jury-demo
+MITTIGUARD_PUBLIC_BASE_URL=https://mittiguard.example.com
+MODEL_PROVIDER=nova
+AWS_REGION=us-east-1
+NOVA_MODEL_ID=amazon.nova-pro-v1:0
+AWS_BEARER_TOKEN_BEDROCK=<fresh-bedrock-token>
+```
+
+Create `/etc/systemd/system/mittiguard.service`:
+
+```ini
+[Unit]
+Description=MittiGuard Relay jury demo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/mittiguard
+EnvironmentFile=/etc/mittiguard.env
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start the service and make its local health endpoint pass before exposing it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mittiguard
+curl http://127.0.0.1:8080/api/health
+```
+
+Then create `/etc/nginx/sites-available/mittiguard`:
+
+```nginx
+server {
+    listen 80;
+    server_name mittiguard.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable TLS after the DNS record resolves:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/mittiguard /etc/nginx/sites-enabled/mittiguard
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d mittiguard.example.com
+```
+
+To update the jury demo to a verified GitHub commit, run:
+
+```bash
+cd /opt/mittiguard
+git pull --ff-only origin main
+sudo systemctl restart mittiguard
+curl -fsS https://mittiguard.example.com/api/health
+```
+
+Before sharing the URL, confirm the health response has
+`liveProviderEnabled: true`, `fieldCapturePublicBaseUrlConfigured: true`, and
+a verified, sealed audit ledger. Then run `npm run smoke:model` and
+`npm run eval:intake:nova -- --json` on the server, reset the jury ledger once,
+and record the demo.
