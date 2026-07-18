@@ -12,7 +12,7 @@ Show **Case intake** and the default demo story.
 
 ## 0:22–0:48 — Capture the real-world mess
 
-Point out the voice/narrative language, optional voice-note transcript, crop stage, stale Soil Health Card date, **missing field image**, and live weather context. The dealer has cleared the prior-failure toggle. Click **Extract evidence draft** once and show that it creates editable evidence fields rather than advice or a sale decision. Do not copy it into policy fields during the recording unless you also show the required source-confirmation checkbox.
+Point out the voice/narrative language, optional voice-note transcript, crop stage, stale Soil Health Card date, **missing field image**, and live weather context. The dealer has cleared the prior-failure toggle. Click **Extract evidence draft** once and show that it creates editable evidence fields rather than advice or a sale decision. Confirm its label says **Amazon Nova Pro evidence intake**; if it says deterministic fallback, stop and repair the deployment before recording. Do not copy it into policy fields during the recording unless you also show the required source-confirmation checkbox.
 
 Say: “The voice transcript is browser capture with a typed fallback. Nova receives only the reviewed text plus an optional real image. The system does not retain audio.”
 

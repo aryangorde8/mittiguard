@@ -344,20 +344,37 @@ async function main() {
   }
 
   const measures = buildMeasures(metrics);
+  const strictFailures = [
+    metrics.providerOrParseFailures > 0 && `${metrics.providerOrParseFailures} provider or parse failure${metrics.providerOrParseFailures === 1 ? "" : "s"}`,
+    metrics.unexpectedGuardRejections > 0 && `${metrics.unexpectedGuardRejections} unexpected guard rejection${metrics.unexpectedGuardRejections === 1 ? "" : "s"}`,
+    metrics.contractFixturePasses !== fixtures.length && `${metrics.contractFixturePasses}/${fixtures.length} contract-safe fixtures`
+  ].filter(Boolean);
+  const strictPassed = strictFailures.length === 0;
   const report = {
     ...reportBase(),
-    status: "completed",
+    status: requireLive ? (strictPassed ? "passed" : "failed") : "completed",
     provider: "Amazon Nova Pro",
     model,
     region,
     measures,
-    results
+    results,
+    ...(requireLive ? {
+      strictContract: {
+        passed: strictPassed,
+        criteria: "Every fixture must resolve through a contract-safe path with no provider/parse failures or unexpected guard rejections.",
+        failures: strictFailures
+      }
+    } : {})
   };
   if (jsonOutput) {
     emit(report);
   } else {
     printSummary(measures);
+    if (requireLive) {
+      console.log(`  strict live contract: ${strictPassed ? "PASS" : `FAIL — ${strictFailures.join("; ")}`}`);
+    }
   }
+  if (requireLive && !strictPassed) process.exitCode = 1;
 }
 
 await main();

@@ -57,7 +57,7 @@ docker run --rm -p 8080:8080 \
 
 Open <http://localhost:8080>. The runtime ledger is deliberately outside the image and Git checkout; `data/demo-store.json` remains a read-only reset fixture. For a deployment beyond this jury demo, use a dedicated persistent volume and set `MITTIGUARD_STORE_PATH`; see [deployment notes](docs/DEPLOY.md).
 
-For a repeatable recording, use **Load clean jury demo** in the app. It asks for confirmation, clears only the local JSON demo ledger, and restores one curated field history. Do not use it for real customer data.
+For a repeatable recording, use **Load clean jury demo** in the app. It asks for confirmation, resets the shared synthetic jury ledger for that deployment, and restores one curated field history. Do not use it for real customer data.
 
 The prototype works without credentials using its deterministic demo assessment. For the live Amazon Nova Pro evidence-summary path, copy the example configuration and add your Bedrock API key before starting the server:
 
@@ -103,7 +103,7 @@ For a transparent, opt-in **24-record predeclared evaluation** of the live Nova 
 npm run eval:intake:nova
 ```
 
-It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports extraction and safety-contract metrics only—not agronomic accuracy. For a machine-readable, date-neutral report, run `npm run eval:intake:nova -- --json`; see [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
+It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports extraction and safety-contract metrics only—not agronomic accuracy. For a machine-readable, date-neutral report, run `npm run eval:intake:nova -- --json`. Before citing results in a submission, use the strict command `npm run eval:intake:nova:required -- --json`; it fails if any fixture lacks a contract-safe live outcome. See [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
 
 ## Architecture
 

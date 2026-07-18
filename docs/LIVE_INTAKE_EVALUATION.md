@@ -20,13 +20,13 @@ For a machine-readable, date-neutral report (no timestamp is emitted), run:
 npm run eval:intake:nova -- --json
 ```
 
-Without `AWS_BEARER_TOKEN_BEDROCK`, the normal command prints `SKIP` and exits successfully without making a network request. Use this variant when a live run is required:
+Without `AWS_BEARER_TOKEN_BEDROCK`, the normal command prints `SKIP` and exits successfully without making a network request. Use this strict variant when a live run is required:
 
 ```bash
 npm run eval:intake:nova:required
 ```
 
-The `:required` command exits with code `2` when the token is absent, which distinguishes an unconfigured live check from a completed run. The fixture manifest is also validated before any API call: it must contain exactly its declared 24 unique records, be within the 20–25-record protocol range, and cover every declared test tag.
+The `:required` command exits with code `2` when the token is absent. After calls complete, it exits nonzero unless every fixture reached a contract-safe outcome, there were no provider/parse failures, and there were no unexpected output-guard rejections. This distinguishes an unconfigured or degraded live path from a passing run. The fixture manifest is also validated before any API call: it must contain exactly its declared 24 unique records, be within the 20–25-record protocol range, and cover every declared test tag.
 
 ## Fixture scope
 

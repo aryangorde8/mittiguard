@@ -116,7 +116,7 @@ function startLiveCase() {
 }
 
 async function resetDemoLedger({ confirm = true } = {}) {
-  const confirmed = !confirm || window.confirm("Load the clean jury demo? This permanently clears only the local MittiGuard demo ledger on this computer.");
+  const confirmed = !confirm || window.confirm("Load the clean jury demo? This resets the shared synthetic jury ledger for this public demo.");
   if (!confirmed) return false;
   const buttons = [$("#reset-demo-ledger"), $("#start-jury-demo"), $("#run-bypass-proof")].filter(Boolean);
   buttons.forEach((button) => { button.disabled = true; button.textContent = "Resetting demo…"; });
@@ -344,37 +344,39 @@ function renderDecisionRoom(result) {
   setEvidenceNode("memory", repeatRisk.detected ? "Automatic Evidence Debt" : "No automatic match", repeatRisk.detected ? shorten(repeatRisk.summary || "A similar unresolved field record exists in field memory.") : "Field memory is checked server-side on every intake.", repeatRisk.detected ? "conflict" : "confirmed");
   setEvidenceNode("weather", "Weather context", weatherDetail, weather.temperature == null ? "context" : "confirmed");
 
-  $("#map-policy-state").textContent = gate.saleState.replaceAll("_", " ");
+  $("#map-policy-state").textContent = paused
+    ? gate.saleState.replaceAll("_", " ")
+    : "REVIEW · NOT RELEASED";
   $("#map-policy-detail").textContent = paused
     ? `${gate.reasons.length} conflict${gate.reasons.length === 1 ? "" : "s"} converted into evidence work.`
     : "Evidence is routed to a qualified reviewer; no sale is released.";
-  $("#map-policy").className = `policy-node ${paused ? "blocked" : "review"}`;
-  $("#control-state").className = `control-state ${paused ? "blocked" : "review"}`;
-  $("#control-state b").textContent = paused ? "INVOICE BLOCKED" : "QUALIFIED REVIEW";
+  $("#map-policy").className = `policy-node ${paused ? "blocked" : "not-released"}`;
+  $("#control-state").className = `control-state ${paused ? "blocked" : "not-released"}`;
+  $("#control-state b").textContent = paused ? "INVOICE BLOCKED" : "REVIEW PACKET · NOT RELEASED";
   $("#control-headline").textContent = repeatRisk.detected
     ? "Evidence Debt stopped a repeat sale."
-    : paused ? "The sale pauses before a guess becomes an invoice." : "A human reviewer owns the next step.";
+    : paused ? "The sale pauses before a guess becomes an invoice." : "A human reviewer owns the next step; the invoice remains not released.";
   $("#control-detail").textContent = repeatRisk.detected
     ? "A related unresolved field record was found in the ledger. The dealer cannot clear this risk manually."
     : "Every conflicting signal becomes an assigned evidence task. Completing tasks cannot release the sale.";
   $("#control-rule").textContent = gate.safetyNote;
   $("#decision-room-verdict").textContent = repeatRisk.detected
     ? "MATCH FOUND · REVIEW REQUIRED"
-    : paused ? "EVIDENCE GAP · RELAY REQUIRED" : "REVIEW PACKET · HUMAN OWNER REQUIRED";
+    : paused ? "EVIDENCE GAP · RELAY REQUIRED" : "REVIEW PACKET · NOT RELEASED";
   renderBypassProof(result);
 }
 
 function renderResult(result) {
   currentCase = result.case;
   const paused = result.gate.decision === "PAUSED";
-  $("#big-status").textContent = paused ? "PAUSED" : "REVIEW READY";
-  $("#big-status").className = `big-status ${paused ? "paused" : "ready"}`;
-  $("#result-status").className = `result-status ${paused ? "paused" : "ready"}`;
+  $("#big-status").textContent = paused ? "PAUSED" : "NOT RELEASED";
+  $("#big-status").className = "big-status paused";
+  $("#result-status").className = "result-status paused";
   $("#result-summary").textContent = result.gate.repeatRisk?.detected
     ? "Automatic Field Memory found a matching unresolved field record. Policy stopped the invoice before a repeat sale could be discussed."
     : paused
       ? "Policy stopped the invoice. An evidence relay is now assigned before a human reviewer can continue."
-    : "Evidence is complete enough for qualified review. This is not product authorization.";
+      : "Evidence is complete enough for qualified review; the invoice remains NOT RELEASED.";
   $("#reason-list").innerHTML = listItems(result.gate.reasons, "No policy conflict detected.");
   $("#evidence-list").innerHTML = listItems(result.relay?.tasks?.map((task) => task.title) || result.gate.requiredEvidence, "No additional evidence required for the review package.");
   $("#farmer-message").textContent = result.assessment.farmerMessage || "Evidence summary unavailable.";
@@ -385,8 +387,8 @@ function renderResult(result) {
     ? `POS Gate ${result.receipt.receiptId} · ${result.receipt.invoiceId} · sale ${result.receipt.saleAuthorization.replaceAll("_", " ").toLowerCase()}.`
     : "Case Desk path used. The POS Gate API can return the same no-release receipt to a billing system.";
   $("#case-number").textContent = result.case.id;
-  $("#sale-preview").className = `sale-preview ${paused ? "held" : "review"}`;
-  $("#sale-preview").innerHTML = paused ? "<span class=\"dot\"></span><span>Invoice blocked — relay required</span>" : "<span class=\"dot\"></span><span>Qualified review required</span>";
+  $("#sale-preview").className = "sale-preview held";
+  $("#sale-preview").innerHTML = paused ? "<span class=\"dot\"></span><span>Invoice blocked — relay required</span>" : "<span class=\"dot\"></span><span>Invoice NOT RELEASED — reviewer required</span>";
   renderDecisionRoom(result);
   renderPosReceipt(result.receipt, result.auditProof);
   renderAuditProof(result.auditProof);
