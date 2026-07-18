@@ -55,10 +55,10 @@ The test suite uses an isolated temporary local ledger and verifies that:
 
 ## Server audit-chain check
 
-Every relay event is mirrored into a sequence-numbered ledger entry. When `MITTIGUARD_AUDIT_SECRET` is configured, the entry is HMAC-SHA256 sealed against its fixed event payload and the previous ledger hash. `scripts/audit-ledger-test.mjs` verifies that:
+Every relay event is mirrored into a sequence-numbered ledger entry. When `MITTIGUARD_AUDIT_SECRET` is configured, the entry is HMAC-SHA256 sealed against its fixed event payload, ledger identity and coverage metadata, and the previous ledger hash. `scripts/audit-ledger-test.mjs` verifies that:
 
 1. new case, task, ownership, and outcome events are linked;
-2. a modified ledger event breaks verification at the edited sequence;
+2. a modified ledger event or header identity breaks verification;
 3. the audit data remains tied to the mirrored relay event;
 4. the sale remains `ON_HOLD`; and
 5. no raw image data or audit secret is written to the ledger.

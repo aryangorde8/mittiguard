@@ -548,6 +548,7 @@ export function buildInvoiceGateReceipt({ record, gate, invoiceId, auditProof = 
       verified: auditProof.valid,
       sealed: auditProof.sealed,
       ledgerId: auditProof.ledgerId,
+      ledgerVersion: auditProof.ledgerVersion,
       algorithm: auditProof.algorithm,
       caseLastSequence: auditProof.caseLastSequence,
       headHash: auditProof.headHash
@@ -635,6 +636,7 @@ const server = createServer(async (req, res) => {
         auditLedger: {
           verified: auditLedger.valid,
           sealed: auditLedger.sealed,
+          ledgerVersion: auditLedger.ledgerVersion,
           algorithm: auditLedger.algorithm,
           entryCount: auditLedger.entryCount
         }

@@ -77,6 +77,13 @@ try {
   assert.ok(!raw.includes("raw-image-must-not-enter-ledger"));
   assert.ok(!raw.includes(process.env.MITTIGUARD_AUDIT_SECRET));
 
+  const headerTamperedPath = join(directory, "header-tampered.json");
+  const headerTampered = JSON.parse(raw);
+  headerTampered.auditLedger.ledgerId = "MGL-TAMPERED-HEADER";
+  await writeFile(headerTamperedPath, `${JSON.stringify(headerTampered)}\n`, "utf8");
+  const headerTamperedProof = await new MittiStore(headerTamperedPath).getLedgerVerification(created.id);
+  assert.equal(headerTamperedProof.valid, false);
+
   const tampered = JSON.parse(raw);
   tampered.auditLedger.entries[0].detail = "Tampered ledger detail.";
   await writeFile(path, `${JSON.stringify(tampered)}\n`, "utf8");

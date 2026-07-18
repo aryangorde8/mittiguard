@@ -65,7 +65,7 @@ npm run dev
 
 `AWS_BEARER_TOKEN_BEDROCK` is only read on the server and is never sent to the browser. `AWS_REGION` defaults to `us-east-1`; set it to the Bedrock region where Nova Pro is enabled for your account. The application uses Node's `--env-file-if-exists` option, so the same setup works with `npm run start`.
 
-For the sealed Human Review Attestation, set a stable `MITTIGUARD_AUDIT_SECRET` before creating the demo ledger. If the current ledger predates that secret, restart and use **Load clean jury demo** once; older SHA-only entries cannot be retroactively sealed.
+For the sealed Human Review Attestation, set a stable `MITTIGUARD_AUDIT_SECRET` before creating the demo ledger. If the current ledger predates that secret or the current sealed-audit format, restart and use **Load clean jury demo** once; older entries cannot be retroactively given the current anchor.
 
 ## Safety evaluation
 

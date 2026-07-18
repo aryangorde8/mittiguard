@@ -19,7 +19,7 @@ The preview includes:
 - a SHA-256 digest of the reviewed evidence packet (field, crop, stage,
   symptom, image-presence flag, soil date, last-input context, transcript
   fingerprint, required tasks, and task-completion notes);
-- the current HMAC audit anchor (ledger ID, algorithm, coverage, head hash,
+- the current HMAC audit anchor (ledger ID, ledger version, algorithm, coverage, head hash,
   and latest sequence for that case); and
 - eligibility issues, if any.
 

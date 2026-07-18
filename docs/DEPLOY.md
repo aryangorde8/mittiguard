@@ -42,9 +42,9 @@ Generate the audit secret once with `openssl rand -hex 32`. Set it before the
 first V4 relay event and keep it stable: changing it invalidates verification
 of earlier HMAC ledger entries. Store the environment file with mode `600`.
 The Human Review Attestation deliberately refuses to run without this seal.
-If the existing demo ledger was created before the secret was configured,
-restart with the secret and use **Load clean jury demo** once before recording:
-old SHA-only entries cannot be retroactively sealed.
+If the existing demo ledger predates the secret or the current sealed-audit
+format, restart with the secret and use **Load clean jury demo** once before
+recording: older entries cannot be retroactively given the current anchor.
 
 The public hackathon instance should stay in `jury-demo` mode and must use
 only the bundled synthetic data. For any real operation, set

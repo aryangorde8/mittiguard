@@ -398,7 +398,7 @@ function openTasks(record) {
 
 function isNamedSyntheticReviewer(value = "") {
   const normalized = String(value).trim().toLowerCase();
-  return normalized.length >= 3 && !["extension desk", "reviewer", "unassigned", "synthetic reviewer"].includes(normalized);
+  return normalized.length >= 3 && !["extension desk", "extension review", "reviewer", "unassigned", "unknown", "synthetic reviewer"].includes(normalized);
 }
 
 function reviewDispositionLabel(disposition) {
