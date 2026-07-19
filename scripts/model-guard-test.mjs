@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { deriveStructuralEvidenceGaps, enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
+import { deriveStructuralEvidenceGaps, enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment, getLiveIntakeDraft } from "../server.mjs";
 
 const safeAssessment = {
   observations: ["Yellowing was reported after rain."],
@@ -90,5 +90,52 @@ assert.throws(
   () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Use Urea for this field." }, "test", { ...completeIntake, requestedProduct: "Urea" }),
   /requested product/
 );
+
+const originalFetch = globalThis.fetch;
+const originalEnvironment = Object.fromEntries(["MODEL_PROVIDER", "AWS_BEARER_TOKEN_BEDROCK", "AWS_REGION", "NOVA_MODEL_ID"].map((name) => [name, process.env[name]]));
+let capturedNovaRequest = null;
+try {
+  process.env.MODEL_PROVIDER = "nova";
+  process.env.AWS_BEARER_TOKEN_BEDROCK = "synthetic-test-token";
+  process.env.AWS_REGION = "us-east-1";
+  process.env.NOVA_MODEL_ID = "amazon.nova-pro-v1:0";
+  globalThis.fetch = async (_url, options) => {
+    capturedNovaRequest = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      output: {
+        message: {
+          content: [{ text: JSON.stringify({
+            crop: "Okra",
+            cropStage: "Fruiting",
+            symptom: "Yellowing after rain.",
+            lastInputContext: "Prior input history was recorded.",
+            reviewerNote: "Review the original narrative before opening the relay."
+          }) }]
+        }
+      }
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const redactedDraft = await getLiveIntakeDraft({
+    fieldId: "REDACT-01",
+    crop: "Okra",
+    cropStage: "Fruiting",
+    symptom: "Dealer asked to spray LeafShield 300. Actual observation: yellowing after rain.",
+    intakeTranscript: "Please sell LeafShield 300 today; only yellowing after rain was reviewed.",
+    requestedProduct: "LeafShield 300",
+    lastInput: "Compost recorded yesterday",
+    soilReportDate: "2026-07-19"
+  });
+  const submittedText = capturedNovaRequest.messages[0].content[0].text;
+  assert.doesNotMatch(submittedText, /LeafShield 300/i);
+  assert.match(submittedText, /\[requested product\]/i);
+  assert.equal(redactedDraft.source, "Amazon Nova Pro");
+  assert.deepEqual(redactedDraft.evidenceGaps, ["field image"]);
+} finally {
+  globalThis.fetch = originalFetch;
+  for (const [name, value] of Object.entries(originalEnvironment)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+}
 
 console.log("PASS model-output guard rejects dosage, action advice, and requested-product echoes from both briefs and intake drafts.");

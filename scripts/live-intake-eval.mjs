@@ -7,6 +7,17 @@ const fixtureDocument = JSON.parse(await readFile(new URL("../fixtures/live-inta
 const fixtures = Array.isArray(fixtureDocument.fixtures) ? fixtureDocument.fixtures : [];
 const MIN_FIXTURES = 20;
 const MAX_FIXTURES = 25;
+const DEFAULT_REQUEST_SPACING_MS = 5_000;
+
+function requestSpacingMs() {
+  const configured = Number(process.env.MITTIGUARD_LIVE_EVAL_INTERVAL_MS || DEFAULT_REQUEST_SPACING_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_REQUEST_SPACING_MS;
+  return Math.min(30_000, Math.max(1_000, Math.round(configured)));
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 function normalize(value) {
   return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -277,12 +288,14 @@ async function main() {
 
   const model = process.env.NOVA_MODEL_ID || "amazon.nova-pro-v1:0";
   const region = process.env.AWS_REGION || "us-east-1";
+  const spacingMs = requestSpacingMs();
   const metrics = createMetrics();
   const results = [];
   metrics.protectedProductFixtures = fixtures.filter((fixture) => fixture.expect?.protectedProduct || fixture.case?.requestedProduct).length;
-  if (!jsonOutput) console.log(`Running ${fixtures.length} predeclared synthetic cases directly against Amazon Nova Pro (${model}, ${region}).`);
+  if (!jsonOutput) console.log(`Running ${fixtures.length} predeclared synthetic cases directly against Amazon Nova Pro (${model}, ${region}), spaced ${spacingMs} ms apart to respect Bedrock throughput.`);
 
-  for (const fixture of fixtures) {
+  for (const [index, fixture] of fixtures.entries()) {
+    if (index > 0) await pause(spacingMs);
     const caseData = caseDataFromFixture(fixture);
     const startedAt = performance.now();
 
@@ -363,6 +376,7 @@ async function main() {
     provider: "Amazon Nova Pro",
     model,
     region,
+    requestSpacingMs: spacingMs,
     measures,
     results,
     ...(requireLive ? {

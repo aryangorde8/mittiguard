@@ -14,6 +14,8 @@ npm run eval:intake:nova
 
 The script forces `MODEL_PROVIDER=nova` and imports `getLiveIntakeDraft()` directly. It deliberately does not call the HTTP `/api/intake/extract` endpoint, so its result cannot be a deterministic route fallback.
 
+The runner spaces live requests five seconds apart and retries transient Bedrock responses (including `429`) with bounded exponential backoff. A full 24-record run therefore takes roughly two minutes. This prevents a benchmark burst from being mistaken for model failure. To slow it further for a lower-throughput account, set `MITTIGUARD_LIVE_EVAL_INTERVAL_MS` to a larger value; do not reduce the default when preparing a judge-facing result.
+
 For a machine-readable, date-neutral report (no timestamp is emitted), run:
 
 ```bash
