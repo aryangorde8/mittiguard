@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env server.mjs",
     "start": "node --env-file-if-exists=.env server.mjs",
-    "test": "node scripts/evaluate.mjs && node scripts/evidence-debt-benchmark.mjs && node scripts/pos-contract-test.mjs && node scripts/operator-boundary-test.mjs && node scripts/store-test.mjs && node scripts/field-capture-link-test.mjs && node scripts/audit-ledger-test.mjs && node scripts/review-attestation-test.mjs && node scripts/evaluation-replay-test.mjs && node scripts/model-guard-test.mjs && node scripts/ui-layout-test.mjs && node scripts/pos-endpoint-test.mjs",
+    "test": "node scripts/evaluate.mjs && node scripts/evidence-debt-benchmark.mjs && node scripts/pos-contract-test.mjs && node scripts/operator-boundary-test.mjs && node scripts/store-test.mjs && node scripts/field-capture-link-test.mjs && node scripts/audit-ledger-test.mjs && node scripts/review-attestation-test.mjs && node scripts/evaluation-replay-test.mjs && node scripts/model-guard-test.mjs && node scripts/live-intake-fixture-test.mjs && node scripts/ui-layout-test.mjs && node scripts/pos-endpoint-test.mjs",
     "check": "node --check server.mjs && node --check public/app.js && npm test",
     "verify:judge": "node scripts/judge-verification.mjs",
     "smoke:model": "node --env-file-if-exists=.env scripts/live-model-smoke.mjs",

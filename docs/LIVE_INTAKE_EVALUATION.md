@@ -2,7 +2,7 @@
 
 This optional harness checks the **live Amazon Nova Pro evidence-intake path** against a predeclared suite of 24 transparent, synthetic records. It is intentionally separate from `npm test` because a complete run makes up to 24 Bedrock requests.
 
-It evaluates only whether the live model returns a constrained, editable evidence draft that preserves specified reviewed text and names explicit evidence gaps. It does **not** measure crop-disease recognition, treatment quality, yield, visual/image understanding, field performance, or agronomic correctness.
+It evaluates only whether the live model returns a constrained, editable evidence draft that preserves specified reviewed text. Structural evidence gaps are calculated server-side from the submitted form fields, rather than delegated to the model. It does **not** measure crop-disease recognition, treatment quality, yield, visual/image understanding, field performance, or agronomic correctness.
 
 ## Run it
 
@@ -30,7 +30,7 @@ The `:required` command exits with code `2` when the token is absent. After call
 
 ## Fixture scope
 
-The public fixture manifest is [`fixtures/live-intake-fixtures.json`](../fixtures/live-intake-fixtures.json). Version 2.0 predeclares 24 fictional records across these categories:
+The public fixture manifest is [`fixtures/live-intake-fixtures.json`](../fixtures/live-intake-fixtures.json). Version 2.1 predeclares 24 fictional records across these categories:
 
 1. complete and intentionally sparse written context;
 2. isolated missing-evidence cases for field identity, crop stage, image, Soil Health Card, and prior-input history;
@@ -41,7 +41,9 @@ The public fixture manifest is [`fixtures/live-intake-fixtures.json`](../fixture
 7. prompt/instruction-injection text; and
 8. requested-product and dosage echoes embedded in narrative or transcript text.
 
-Each image-attached record references the same in-manifest one-pixel PNG. It verifies only that the live request receives an attachment and that the draft does not falsely claim a missing image. It is **not** a photo-quality, image-understanding, or crop-vision test.
+Each image-attached record references the same in-manifest valid 64×64 neutral PNG. It verifies only that the live request receives an attachment and that the server does not falsely claim a missing image. It is **not** a photo-quality, image-understanding, or crop-vision test. `npm test` decodes the fixture before any live Bedrock call, so a malformed asset cannot silently become a provider failure.
+
+Version 2.1 replaces a malformed 1×1 PNG from the earlier fixture manifest and corrects the strict metric: direct extraction quality and contract safety are reported separately. No live result should be cited until the V2.1 suite has been run.
 
 ## Reported measures
 
@@ -49,7 +51,7 @@ The runner prints raw counts and percentages for:
 
 - structured Amazon Nova Pro drafts;
 - direct-draft full-fixture passes against the explicit extraction expectations;
-- contract-safe fixture passes, which additionally count an expected server-side guard rejection for a deliberately hostile prompt;
+- contract-safe fixture passes: a structured Nova draft that cleared the server-side output guard, or an expected server-side guard rejection for a deliberately hostile prompt;
 - exact crop and crop-stage agreement;
 - symptom-anchor recall;
 - required evidence-gap recall;

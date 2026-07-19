@@ -178,7 +178,7 @@ function renderIntakeDraft(result) {
   $("#intake-draft-source").textContent = `${result.mode} · editable evidence only`;
   $("#draft-symptom").textContent = intakeDraft.symptom || "No symptom could be extracted; keep the original wording.";
   $("#draft-crop").textContent = [intakeDraft.crop, intakeDraft.cropStage].filter(Boolean).join(" · ") || "No crop or stage extracted.";
-  $("#draft-gaps").textContent = intakeDraft.evidenceGaps.length ? intakeDraft.evidenceGaps.join(" · ") : "No gap identified by the draft; policy will still verify the full packet.";
+  $("#draft-gaps").textContent = intakeDraft.evidenceGaps.length ? intakeDraft.evidenceGaps.join(" · ") : "No structural gap in the submitted fields; policy will still verify the full packet.";
   $("#draft-note").textContent = intakeDraft.reviewerNote;
   $("#intake-draft").classList.remove("hidden");
 }

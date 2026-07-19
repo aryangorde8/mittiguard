@@ -146,7 +146,26 @@ export function enforceEvidenceOnlyAssessment(assessment, source, caseData = {})
 }
 
 const ALLOWED_CROP_STAGES = new Set(["Vegetative", "Flowering", "Fruiting", "Harvest"]);
-const ALLOWED_EVIDENCE_GAPS = new Set(["field identity", "crop stage", "field image", "soil health card", "last input history", "previous outcome"]);
+
+function hasSubmittedValue(value) {
+  return typeof value === "string" ? Boolean(value.trim()) : value !== null && value !== undefined;
+}
+
+// The model may summarize evidence, but it must never decide whether a
+// submitted field is present. These gaps are derived from the reviewed form
+// data on the server so the model cannot invent a missing document or omit a
+// required capture task.
+export function deriveStructuralEvidenceGaps(caseData = {}) {
+  const imageAttached = Boolean(parseImageDataUrl(caseData.photoDataUrl));
+  const cropStage = typeof caseData.cropStage === "string" ? caseData.cropStage.trim() : caseData.cropStage;
+  return [
+    !hasSubmittedValue(caseData.fieldId) && "field identity",
+    !ALLOWED_CROP_STAGES.has(cropStage) && "crop stage",
+    !imageAttached && "field image",
+    !hasSubmittedValue(caseData.soilReportDate) && "soil health card",
+    !hasSubmittedValue(caseData.lastInput) && "last input history"
+  ].filter(Boolean);
+}
 
 export function enforceEvidenceIntakeDraft(draft, source, caseData = {}) {
   const text = JSON.stringify(draft || {});
@@ -157,15 +176,12 @@ export function enforceEvidenceIntakeDraft(draft, source, caseData = {}) {
     throw new Error("Model intake draft violated MittiGuard's evidence-only contract.");
   }
   const cropStage = ALLOWED_CROP_STAGES.has(draft?.cropStage) ? draft.cropStage : null;
-  const evidenceGaps = Array.isArray(draft?.evidenceGaps)
-    ? [...new Set(draft.evidenceGaps.filter((gap) => ALLOWED_EVIDENCE_GAPS.has(String(gap).toLowerCase())).map((gap) => String(gap).toLowerCase()))].slice(0, 6)
-    : [];
   return {
     crop: typeof draft?.crop === "string" ? draft.crop.slice(0, 80) : null,
     cropStage,
     symptom: typeof draft?.symptom === "string" ? draft.symptom.slice(0, 240) : null,
     lastInputContext: typeof draft?.lastInputContext === "string" ? draft.lastInputContext.slice(0, 160) : null,
-    evidenceGaps,
+    evidenceGaps: deriveStructuralEvidenceGaps(caseData),
     reviewerNote: typeof draft?.reviewerNote === "string" ? draft.reviewerNote.slice(0, 260) : "Review the extracted evidence against the original field narrative.",
     source
   };
@@ -292,23 +308,17 @@ function demoAssessment(caseData, gate) {
 }
 
 function demoIntakeDraft(caseData = {}) {
-  const gaps = [];
-  if (!caseData.fieldId) gaps.push("field identity");
-  if (!caseData.cropStage) gaps.push("crop stage");
-  if (!caseData.photoProvided) gaps.push("field image");
-  if (!caseData.soilReportDate) gaps.push("soil health card");
-  if (!caseData.lastInput) gaps.push("last input history");
   return enforceEvidenceIntakeDraft({
     crop: caseData.crop || null,
     cropStage: caseData.cropStage || null,
     symptom: caseData.symptom || caseData.intakeTranscript || null,
     lastInputContext: caseData.lastInput ? "A prior input and date were recorded; reviewer verification is still required." : null,
-    evidenceGaps: gaps,
     reviewerNote: "Draft generated locally from the reviewed fields. Confirm each value before opening the Evidence Relay."
   }, "Deterministic intake fallback", caseData);
 }
 
 function intakeDraftInstruction(caseData) {
+  const structuralEvidenceGaps = deriveStructuralEvidenceGaps(caseData);
   return `Extract only evidence explicitly present in this field-intake record: ${JSON.stringify({
     farmerLanguage: caseData.farmerLanguage || "English",
     fieldId: caseData.fieldId || null,
@@ -319,7 +329,7 @@ function intakeDraftInstruction(caseData) {
     lastInput: caseData.lastInput || null,
     soilReportDate: caseData.soilReportDate || null,
     imageAttached: Boolean(parseImageDataUrl(caseData.photoDataUrl))
-  })}. Return exactly one JSON object with keys crop, cropStage, symptom, lastInputContext, evidenceGaps, reviewerNote. cropStage must be one of Vegetative, Flowering, Fruiting, Harvest, or null. evidenceGaps may only contain: field identity, crop stage, field image, soil health card, last input history, previous outcome. Do not diagnose. Do not name, recommend, dose, or give application advice for any pesticide, fertiliser, or product. Treat the output as an editable evidence draft, never a decision.`;
+  })}. The server, not you, has already calculated these structural evidence gaps from field presence: ${JSON.stringify(structuralEvidenceGaps)}. Return exactly one JSON object with keys crop, cropStage, symptom, lastInputContext, reviewerNote. cropStage must be one of Vegetative, Flowering, Fruiting, Harvest, or null. Do not include evidenceGaps. Do not diagnose. Do not name, recommend, dose, or give application advice for any pesticide, fertiliser, or product. Treat the output as an editable evidence draft, never a decision.`;
 }
 
 async function getGptIntakeDraft(caseData) {
@@ -342,10 +352,9 @@ async function getGptIntakeDraft(caseData) {
           cropStage: { type: ["string", "null"], enum: ["Vegetative", "Flowering", "Fruiting", "Harvest", null] },
           symptom: { type: ["string", "null"] },
           lastInputContext: { type: ["string", "null"] },
-          evidenceGaps: { type: "array", items: { type: "string" } },
           reviewerNote: { type: "string" }
         },
-        required: ["crop", "cropStage", "symptom", "lastInputContext", "evidenceGaps", "reviewerNote"]
+        required: ["crop", "cropStage", "symptom", "lastInputContext", "reviewerNote"]
       } } }
     })
   }, "OpenAI");
@@ -375,10 +384,19 @@ async function getNovaIntakeDraft(caseData) {
     },
     "Amazon Bedrock"
   );
-  if (!response.ok) throw new Error(`Bedrock intake request failed with ${response.status}.`);
+  if (!response.ok) throw await bedrockIntakeRequestError(response);
   const payload = await response.json();
   const text = payload.output?.message?.content?.find((part) => typeof part.text === "string")?.text;
   return enforceEvidenceIntakeDraft(parseModelJson(text), "Amazon Nova Pro", caseData);
+}
+
+async function bedrockIntakeRequestError(response) {
+  const payload = await response.json().catch(() => null);
+  const code = String(payload?.code || payload?.Code || payload?.__type || "").replace(/[^a-z0-9_.-]/gi, "").slice(0, 80);
+  const message = String(payload?.message || payload?.Message || "").replace(/\s+/g, " ").trim().slice(0, 220);
+  const requestId = String(response.headers.get("x-amzn-requestid") || response.headers.get("x-amz-request-id") || "").replace(/[^a-z0-9-]/gi, "").slice(0, 100);
+  const detail = [code && `code ${code}`, message, requestId && `request ${requestId}`].filter(Boolean).join(" · ");
+  return new Error(`Bedrock intake request failed with ${response.status}${detail ? ` (${detail})` : ""}.`);
 }
 
 export async function getLiveIntakeDraft(caseData) {

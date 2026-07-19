@@ -1,11 +1,24 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+async function availableLocalPort() {
+  const probe = createServer();
+  await new Promise((resolve, reject) => {
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", resolve);
+  });
+  const address = probe.address();
+  assert.ok(address && typeof address === "object", "port probe did not return a local address");
+  await new Promise((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
+  return address.port;
+}
+
 const directory = await mkdtemp(join(tmpdir(), "mittiguard-operator-boundary-"));
-const port = 33_000 + Math.floor(Math.random() * 1_000);
+const port = await availableLocalPort();
 const operatorKey = "mittiguard-operator-boundary-test-key";
 const child = spawn(process.execPath, ["server.mjs"], {
   cwd: new URL("..", import.meta.url),

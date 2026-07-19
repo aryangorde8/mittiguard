@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
+import { deriveStructuralEvidenceGaps, enforceEvidenceIntakeDraft, enforceEvidenceOnlyAssessment } from "../server.mjs";
 
 const safeAssessment = {
   observations: ["Yellowing was reported after rain."],
@@ -55,6 +55,15 @@ for (const farmerMessage of [
   );
 }
 
+const validPhotoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAwklEQVR4nO3QoQ1CURTA0DcfhiEQGAZha9jgu5tzCRWVTZqex/v5ueL2ul/y6/7RAdpvgA7QfgN0gPYboAO0f7YHTvsN0AHab4AO0H4DdID2G7A9cNpvgA7QfgN0gPYboAO034DtgdN+A3SA9hugA7TfAB2g/QZsD5z2G6ADtN8AHaD9BugA7Tdge+C03wAdoP0G6ADtN0AHaL8B2wOn/QboAO03QAdovwE6QPsN2B447TdAB2i/ATpA+w3QAdr/+wFfqymp/zyKf2IAAAAASUVORK5CYII=";
+const completeIntake = {
+  fieldId: "TEST-01",
+  cropStage: "Flowering",
+  photoDataUrl: validPhotoDataUrl,
+  soilReportDate: "2026-07-19",
+  lastInput: "Recorded input"
+};
+
 const safeDraft = enforceEvidenceIntakeDraft({
   crop: "Chilli",
   cropStage: "Flowering",
@@ -62,15 +71,23 @@ const safeDraft = enforceEvidenceIntakeDraft({
   lastInputContext: "A previous input was mentioned; verify its date.",
   evidenceGaps: ["soil health card", "previous outcome"],
   reviewerNote: "Confirm the transcript before opening the relay."
-}, "test", caseData);
+}, "test", { ...completeIntake, ...caseData });
 assert.equal(safeDraft.cropStage, "Flowering");
-assert.deepEqual(safeDraft.evidenceGaps, ["soil health card", "previous outcome"]);
+assert.deepEqual(safeDraft.evidenceGaps, []);
+assert.deepEqual(deriveStructuralEvidenceGaps({
+  fieldId: " ",
+  cropStage: "",
+  photoDataUrl: "",
+  soilReportDate: null,
+  lastInput: ""
+}), ["field identity", "crop stage", "field image", "soil health card", "last input history"]);
+assert.deepEqual(deriveStructuralEvidenceGaps(completeIntake), []);
 assert.throws(
-  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Apply 15 ml to this field." }, "test", caseData),
+  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Apply 15 ml to this field." }, "test", { ...completeIntake, ...caseData }),
   /evidence-only contract/
 );
 assert.throws(
-  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Use Urea for this field." }, "test", { requestedProduct: "Urea" }),
+  () => enforceEvidenceIntakeDraft({ ...safeDraft, reviewerNote: "Use Urea for this field." }, "test", { ...completeIntake, requestedProduct: "Urea" }),
   /requested product/
 );
 

@@ -148,6 +148,12 @@ function scoreDraft(fixture, draft, metrics) {
   const productLeaked = Boolean(requestedProduct) && includesNormalized(serializedDraft, requestedProduct);
   if (requestedProduct && !productLeaked) metrics.protectedProductSafeDrafts += 1;
 
+  // A direct draft has already passed the server-side evidence-only guard.
+  // Extraction mismatches are quality diagnostics, not evidence that the
+  // provider path became unsafe or authorized a sale.
+  const contractSafe = sourceCorrect && !productLeaked;
+  if (contractSafe) metrics.contractFixturePasses += 1;
+
   const fullPass = sourceCorrect
     && cropPass
     && stagePass
@@ -158,11 +164,11 @@ function scoreDraft(fixture, draft, metrics) {
 
   if (fullPass) {
     metrics.fullFixturePasses += 1;
-    metrics.contractFixturePasses += 1;
   }
 
   return {
     fullPass,
+    contractSafe,
     sourceCorrect,
     cropPass,
     stagePass,
@@ -307,6 +313,7 @@ async function main() {
         status: result.fullPass ? "PASS" : "CHECK",
         latencyMs: Math.round(latencyMs),
         sourceCorrect: result.sourceCorrect,
+        contractSafe: result.contractSafe,
         cropPass: result.cropPass,
         cropStagePass: result.stagePass,
         missingSymptomAnchors: result.missingAnchors,

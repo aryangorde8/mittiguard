@@ -103,7 +103,7 @@ For a transparent, opt-in **24-record predeclared evaluation** of the live Nova 
 npm run eval:intake:nova
 ```
 
-It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports extraction and safety-contract metrics only—not agronomic accuracy. For a machine-readable, date-neutral report, run `npm run eval:intake:nova -- --json`. Before citing results in a submission, use the strict command `npm run eval:intake:nova:required -- --json`; it fails if any fixture lacks a contract-safe live outcome. See [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
+It skips cleanly without a Bedrock token and is deliberately outside `npm test` because it makes live requests. It reports model extraction quality and separate safety-contract metrics only—not agronomic accuracy; structural evidence gaps are calculated server-side. For a machine-readable, date-neutral report, run `npm run eval:intake:nova -- --json`. Before citing results in a submission, use the strict command `npm run eval:intake:nova:required -- --json`; it fails if any fixture lacks a contract-safe live outcome. See [the live intake evaluation protocol](docs/LIVE_INTAKE_EVALUATION.md).
 
 ## Architecture
 
